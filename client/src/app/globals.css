@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root,
+.app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  @apply text-sm;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 2. Setup your semantic tokens */
+@theme {
+  --color-brand-100: #ffffff;
+  --color-brand-200: #f8fafc;
+  --color-brand-300: #f4f7fa;
+  --color-brand-400: #f1f5f9;
+  --color-brand-500: #e2e8f0;
+  --color-brand-600: #cbd5e1;
+  --color-brand-700: #64748b;
+  --color-brand-800: #334155;
+  --color-brand-900: #070a13;
+
+}
+
+/* 3. Handle the swap safely using CSS cascading rules */
+@layer theme {
+  .dark {
+    --color-brand-900: #e2e8f0;
+    --color-brand-800: #94a3b8;
+    --color-brand-700: #475569;
+    --color-brand-600: #334155;
+    --color-brand-500: #1e293b;
+    --color-brand-400: #111827;
+    --color-brand-300: #0b0f19;
+    --color-brand-200: #070a10;
+    --color-brand-100: #030406;
+
+  }
+}
