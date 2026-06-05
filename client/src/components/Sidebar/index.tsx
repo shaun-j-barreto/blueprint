@@ -1,7 +1,8 @@
 "use client";
 import { useAppDispatch, useAppSelector } from "@/app/redux";
 import { setIsSidebarCollapsed } from "@/state";
-import { AlertCircle, AlertOctagon, AlertTriangle, Briefcase, ChevronDown, ChevronUp, FolderDot, FolderOpenDot, Home, Layers3, LockIcon, LucideIcon, Search, Settings, ShieldAlert, User, Users, X } from "lucide-react";
+import { useGetProjectsQuery } from "@/state/api";
+import { AlertCircle, AlertOctagon, AlertTriangle, Briefcase, ChevronDown, ChevronUp, FileText, FolderDot, FolderOpenDot, Home, Layers3, LockIcon, LucideIcon, Search, Settings, ShieldAlert, User, Users, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -68,12 +69,13 @@ const Sidebar = () => {
     const [showProjects, setShowProjects] = useState(true);
     const [showPriority, setShowPriority] = useState(true);
 
+    const { data: projects } = useGetProjectsQuery();
     const dispatch = useDispatch();
     const isSidebarCollapsed = useAppSelector(
         (state) => state.global.isSidebarCollapsed,
     );
 
-    const sidebarClassNames = `fixed flex flex-col h-full justify-between shadow-xl transition-all duration-300 z-10 bg-brand-300 ${isSidebarCollapsed ? "w-0 hidden" : "w-64"}`;
+    const sidebarClassNames = `fixed flex flex-col h-full justify-between shadow-xl transition-all duration-300 z-40 overflow-y-auto [&::-webkit-scrollbar]:none [-ms-overflow-style:none] [scrollbar-width:none] bg-brand-300 ${isSidebarCollapsed ? "w-0 hidden" : "w-64"}`;
 
     return (
         <div className={sidebarClassNames}>
@@ -128,6 +130,11 @@ const Sidebar = () => {
                     </div>
                     {showProjects ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </button>
+                {showProjects && projects?.map((project) => (
+                    <SidebarLink key={project.id} icon={FileText} label={project.name} href={`/projects/${project.id}`} />
+
+                )
+                )}
                 {/* Priorities */}
                 <button onClick={() => setShowPriority((prev) => !prev)} className="flex w-full hover:bg-brand-500 font-medium items-center cursor-pointer justify-between px-8 py-3 text-brand-800">
                     <span className="">Priority</span>

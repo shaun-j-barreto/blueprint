@@ -41,7 +41,7 @@ async function deleteAllData(orderedFileNames: string[]) {
 
 async function main() {
   // Resolves the path relative to the runtime location
-  const dataDirectory = path.resolve(__dirname, "seedData");
+  const dataDirectory = path.join(process.cwd(), "prisma", "seedData");
 
   const orderedFileNames = [
     "team.json",
