@@ -48,3 +48,21 @@ body,
 
   }
 }
+
+html body .wx-willow-dark-theme {
+  /* Main Background */
+  --wx-background: #000000 !important;
+
+  /* Borders */
+  --wx-gantt-border: 1px solid #1f2937 !important;
+  --wx-timescale-border: 1px solid #1f2937 !important;
+
+  /* Interactive Elements */
+  --wx-gantt-select-color: #111827 !important;
+  --wx-tooltip-background: #0a0a0a !important;
+
+  /* Text */
+  --wx-color-font: #f3f4f6 !important;
+  --wx-grid-header-font-color: #9ca3af !important;
+  --wx-timescale-font-color: #9ca3af !important;
+}

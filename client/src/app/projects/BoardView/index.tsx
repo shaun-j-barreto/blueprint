@@ -6,7 +6,7 @@ import {
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "@/state/api";
-import { EllipsisVertical, Plus } from "lucide-react";
+import { EllipsisVertical, MessageSquareMore, Plus } from "lucide-react";
 import { format } from "date-fns";
 import Image from "next/image";
 
@@ -87,9 +87,9 @@ const TaskColumn = ({
 
     const statusColor: Record<string, string> = {
         "To Do": "#2563EB",
-        "Work In Progress": "#059669",
+        "Work In Progress": "#0EA5E9",
         "Under Review": "#D97706",
-        Completed: "#000000",
+        "Completed": "#16A34A"
     };
 
     return (
@@ -97,10 +97,10 @@ const TaskColumn = ({
             ref={(instance) => {
                 drop(instance);
             }}
-            className={`rounded-lg py-2 sm:py-4 xl:px-2 ${isOver ? "bg-blue-100 dark:bg-neutral-900" : ""}`}
+            className={`rounded-lg py-2 sm:py-4 xl:px-2 ${isOver ? "bg-brand-200" : ""}`}
         >
             {/* Parent layout container element with unified styling */}
-            <div className="bg-brand-100 mb-3 flex w-full overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+            <div className="bg-brand-100 mb-3 flex w-full overflow-hidden rounded-lg border border-brand-500 shadow-sm">
                 {/* 1. Sibling Element: Colored Accent Strip indicator line */}
                 <div
                     className="w-2 flex-shrink-0"
@@ -116,11 +116,11 @@ const TaskColumn = ({
                         </span>
                     </h3>
                     <div className="flex items-center gap-1">
-                        <button className="text-brand-700 flex h-6 w-5 cursor-pointer items-center justify-center">
+                        <button className="text-brand-900 flex h-6 w-5 cursor-pointer items-center justify-center">
                             <EllipsisVertical size={26} />
                         </button>
                         <button
-                            className="bg-brand-600 flex h-6 w-6 cursor-pointer items-center justify-center rounded"
+                            className="bg-brand-600 text-brand-900 flex h-6 w-6 cursor-pointer items-center justify-center rounded"
                             onClick={() => setIsModalNewTaskOpen(true)}
                         >
                             <Plus size={16} />
@@ -161,18 +161,85 @@ const Task = ({ task }: TaskProps) => {
 
     const numberOfComments = (task.comments && task.comments.length) || 0;
 
-
     return (
-        <div ref={(instance) => {
-            drag(instance);
-        }} className={`mb-4 rounded-md bg-brand-200 border border-brand-500/30 shadow ${isDragging ? "opacity-50" : "opacity-100"}`}>
+        <div
+            ref={(instance) => {
+                drag(instance);
+            }}
+            className={`bg-brand-200 border-brand-500/80 mb-4 rounded-md border shadow ${isDragging ? "opacity-50" : "opacity-100"}`}
+        >
             {task.attachments && task.attachments.length > 0 && (
-                <Image src={`/${task.attachments[0].fileUrl}`} alt={task.attachments[0].filename} width={400} height={400} className="h-auto w-full rounded-t-md" />
+                <Image
+                    src={`/${task.attachments[0].fileUrl}`}
+                    alt="Task Image"
+                    width={400}
+                    height={400}
+                    className="h-auto w-full rounded-t-md"
+                />
             )}
             <div className="p-4 md:p-6">
                 <div className="flex items-start justify-between">
                     <div className="flex flex-1 flex-wrap items-center gap-2">
                         {task.priority && <PriorityTag priority={task.priority} />}
+                        <div className="flex gap-2">
+                            {taskTagsSplit.map((tag) => (
+                                <div
+                                    key={tag}
+                                    className="bg-brand-600 text-brand-900 rounded-full px-2 py-1 text-xs"
+                                >
+                                    {tag}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <button className="text-brand-900 flex h-6 w-4 shrink-0 cursor-pointer items-center justify-center">
+                        <EllipsisVertical size={26} />
+                    </button>
+                </div>
+                <div className="my-3 flex justify-between">
+                    <h4 className="text-md font bold text-brand-900">{task.title}</h4>
+                    {typeof task.points === "number" && (
+                        <div className="text-brand-900 text-xs font-semibold">
+                            {task.points} pts
+                        </div>
+                    )}
+                </div>
+                <div className="text-brand-800 text-xs">
+                    {formattedStartDate && <span>{formattedStartDate} - </span>}
+                    {formattedDueDate && <span>{formattedDueDate}</span>}
+                </div>
+                <p className="text-brand-900 text-sm">{task.description}</p>
+                <div className="border-brand-600 mt-4 border-t">
+                    {/* Users */}
+                    <div className="mt-3 flex items-center justify-between">
+                        <div className="flex -space-x-[6px] overflow-hidden">
+                            {task.assignee && (
+                                <Image
+                                    key={task.assignee.userId}
+                                    src={`/${task.assignee.profilePictureUrl!}`}
+                                    alt="Assignee Avatar"
+                                    width={30}
+                                    height={30}
+                                    className="borders-2 border-brand-600 oject-cover h-8 w-8 rounded-full"
+                                />
+                            )}
+                            {task.author && (
+                                <Image
+                                    key={task.author.userId}
+                                    src={`/${task.author.profilePictureUrl!}`}
+                                    alt="author avatar"
+                                    width={30}
+                                    height={30}
+                                    className="borders-2 border-brand-600 oject-cover h-8 w-8 rounded-full"
+                                />
+                            )}
+                        </div>
+                        <div className=" flex items-center text-brand-800">
+                            <MessageSquareMore size={20} />
+                            <span className="ml-1 text-sm text-brand-800">
+                                {numberOfComments}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
