@@ -9,6 +9,8 @@ import bodyParser from "body-parser";
 import projectRoutes from "./routes/projectRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
 
 // configurations
 dotenv.config();
@@ -29,8 +31,10 @@ app.get("/", (req, res) => {
 app.use("/projects", projectRoutes);
 app.use("/tasks", taskRoutes);
 app.use("/search", searchRoutes);
+app.use("/users", userRoutes);
+app.use("/teams", teamRoutes);
 // server
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
+const port = Number(process.env.PORT) || 3000;
+app.listen(port, "0.0.0.0", () => {
   console.log(`Server is running on port ${port}`);
 });
