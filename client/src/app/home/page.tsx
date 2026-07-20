@@ -29,11 +29,11 @@ import {
 } from "recharts";
 
 // Updated to distinct, high-contrast semantic colors
-const STATUS_COLORS: Record<string, string> = {
-    "To Do": "#2563eb", // Blue
-    "Work In Progress": "#f59e0b", // Amber
-    "Under Review": "#d946ef", // Fuchsia
-    "Completed": "#10b981", // Emerald
+const STATUS_COLORS = {
+    "To Do": "#94a3b8",
+    "Work In Progress": "#818cf8",
+    "Under Review": "#E3963E",
+    "Completed": "#34d399",
 };
 
 const HomePage = () => {
@@ -203,18 +203,32 @@ const HomePage = () => {
                                     cy="50%"
                                     innerRadius={90}
                                     outerRadius={130}
-                                    paddingAngle={5}
+                                    paddingAngle={4}
+                                    cornerRadius={6}
+                                    stroke="none"
                                     dataKey="value"
                                 >
                                     {pieChartData.map((entry, index) => (
                                         <Cell
                                             key={`cell-${index}`}
                                             fill={STATUS_COLORS[entry.name] || "#94a3b8"}
+                                            stroke="none"
                                         />
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: 'none', color: '#1e1e1e' }}
+                                    isAnimationActive={false}
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            return (
+                                                <div className="rounded-lg border-none bg-brand-900 px-4 py-3 text-sm text-brand-200 shadow-md outline-none">
+                                                    <span className="font-medium">{payload[0].name}</span>: {payload[0].value}
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                    cursor={{ fill: 'transparent' }}
                                 />
                                 <Legend verticalAlign="bottom" height={40} iconType="circle" />
                             </PieChart>
@@ -300,10 +314,10 @@ const HomePage = () => {
                                             {/* Priority Column */}
                                             <td className="p-4">
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${task.priority === 'Urgent' ? 'border-red-300 bg-red-100 text-red-800' :
-                                                        task.priority === 'High' ? 'border-orange-300 bg-orange-100 text-orange-800' :
-                                                            task.priority === 'Medium' ? 'border-amber-300 bg-amber-100 text-amber-800' :
-                                                                task.priority === 'Low' ? 'border-cyan-300 bg-cyan-100 text-cyan-800' :
-                                                                    'border-slate-300 bg-slate-100 text-slate-800'
+                                                    task.priority === 'High' ? 'border-orange-300 bg-orange-100 text-orange-800' :
+                                                        task.priority === 'Medium' ? 'border-amber-300 bg-amber-100 text-amber-800' :
+                                                            task.priority === 'Low' ? 'border-cyan-300 bg-cyan-100 text-cyan-800' :
+                                                                'border-slate-300 bg-slate-100 text-slate-800'
                                                     }`}>
                                                     {task.priority}
                                                 </span>
