@@ -6,7 +6,12 @@ import path from "path";
 import "dotenv/config";
 
 // 1. Initialize the PostgreSQL Driver and Adapter
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const isRDS = process.env.DATABASE_URL?.includes("rds.amazonaws.com");
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: isRDS ? { rejectUnauthorized: false } : false,
+});
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
