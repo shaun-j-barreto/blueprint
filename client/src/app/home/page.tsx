@@ -28,8 +28,11 @@ import {
     ResponsiveContainer
 } from "recharts";
 
+type StatusKey = "To Do" | "Work In Progress" | "Under Review" | "Completed";
+
+
 // Updated to distinct, high-contrast semantic colors
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<StatusKey, string> = {
     "To Do": "#94a3b8",
     "Work In Progress": "#818cf8",
     "Under Review": "#E3963E",
@@ -211,7 +214,7 @@ const HomePage = () => {
                                     {pieChartData.map((entry, index) => (
                                         <Cell
                                             key={`cell-${index}`}
-                                            fill={STATUS_COLORS[entry.name] || "#94a3b8"}
+                                            fill={STATUS_COLORS[entry.name as StatusKey] || "#94a3b8"}
                                             stroke="none"
                                         />
                                     ))}
@@ -287,7 +290,7 @@ const HomePage = () => {
                                                 <div className="flex flex-col">
                                                     <span className="text-base font-bold text-brand-900">{task.title}</span>
                                                     <span className="mt-1 text-sm text-brand-700">
-                                                        {task.project?.name || `Project #${task.projectId}`}
+                                                        {task.author?.username || `Project #${task.projectId}`}
                                                     </span>
                                                 </div>
                                             </td>
