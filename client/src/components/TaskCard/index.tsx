@@ -44,7 +44,7 @@ const TaskCard = ({ task }: TaskCardProps) => {
                 {task.attachments && task.attachments.length > 0 && (
                     <div className="relative w-full h-44 mb-4 rounded-lg overflow-hidden border border-brand-500 bg-brand-300">
                         <Image
-                            src={`/${task.attachments[0].fileUrl || task.attachments[0].fileUrl}`}
+                            src={`/${task.attachments[0].fileURL || task.attachments[0].fileURL}`}
                             alt={task.attachments[0].filename || task.attachments[0].filename || "Attachment"}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
