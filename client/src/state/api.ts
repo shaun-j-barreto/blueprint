@@ -48,7 +48,7 @@ export interface Team {
 
 export interface Attachment {
   id: number;
-  fileUrl: string;
+  fileURL: string;
   filename: string;
   taskId: number;
   uploadedById: number;
