@@ -62,7 +62,7 @@ const Sidebar = () => {
                 <div className="mt-2 flex items-center gap-4 border-b border-brand-400/40 px-8 py-5">
                     <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-brand-400/50 shadow-sm">
                         <Image
-                            src="/logo.png"
+                            src="https://bp-s3-images.s3.us-east-1.amazonaws.com/logo.png"
                             width={40}
                             height={40}
                             alt="logo"

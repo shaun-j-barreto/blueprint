@@ -17,7 +17,7 @@ const UserCard = ({ user }: Props) => {
             <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand-200 border border-brand-600">
                 {user.profilePictureUrl ? (
                     <Image
-                        src={`/${user.profilePictureUrl}`}
+                        src={`https://bp-s3-images.s3.us-east-1.amazonaws.com/${user.profilePictureUrl}`}
                         alt={`${user.username}'s profile`}
                         fill
                         className="rounded-full object-cover"
