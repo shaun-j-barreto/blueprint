@@ -3,8 +3,9 @@
 import { Task, useDeleteTaskMutation } from '@/state/api';
 import { format } from 'date-fns';
 import Image from 'next/image';
-import React from 'react';
-import { Calendar, User, Tag, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, User, Tag, Pencil, Trash2 } from 'lucide-react';
+import ModalEditTask from '@/components/ModalEditTask';
 
 type TaskCardProps = {
     task: Task;
@@ -12,6 +13,7 @@ type TaskCardProps = {
 
 const TaskCard = ({ task }: TaskCardProps) => {
     const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+    const [isEditOpen, setIsEditOpen] = useState(false);
 
     const handleDelete = async () => {
         if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
@@ -30,6 +32,7 @@ const TaskCard = ({ task }: TaskCardProps) => {
     };
 
     return (
+        <>
         <div className='flex flex-col justify-between mb-4 rounded-xl bg-brand-100 p-5 shadow-sm border border-brand-500 transition-all hover:shadow-md'>
             <div>
                 {/* 1. Header: Status, Priority & ID */}
@@ -53,6 +56,15 @@ const TaskCard = ({ task }: TaskCardProps) => {
                     </div>
                     <div className='flex items-center gap-2'>
                         <span className='text-xs font-mono text-brand-800'>#{task.id}</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsEditOpen(true)}
+                            title="Edit task"
+                            aria-label={`Edit task ${task.title}`}
+                            className='flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-brand-800 transition-colors hover:bg-brand-400 hover:text-brand-900'
+                        >
+                            <Pencil className='h-4 w-4' />
+                        </button>
                         <button
                             type="button"
                             onClick={handleDelete}
@@ -132,6 +144,14 @@ const TaskCard = ({ task }: TaskCardProps) => {
                 </div>
             </div>
         </div>
+        {isEditOpen && (
+            <ModalEditTask
+                isOpen={isEditOpen}
+                task={task}
+                onClose={() => setIsEditOpen(false)}
+            />
+        )}
+        </>
     );
 };
 

@@ -62,6 +62,130 @@ export const createTask = async (
   }
 };
 
+export const updateTask = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const { taskId } = req.params;
+  const id = Number(taskId);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ message: "Invalid task id" });
+    return;
+  }
+
+  const body = req.body ?? {};
+  const data: Record<string, any> = {};
+
+  if (body.title !== undefined) {
+    if (typeof body.title !== "string" || body.title.trim() === "") {
+      res.status(400).json({ message: "Title cannot be empty" });
+      return;
+    }
+    data.title = body.title.trim();
+  }
+
+  if (body.description !== undefined) {
+    if (body.description !== null && typeof body.description !== "string") {
+      res.status(400).json({ message: "Invalid description" });
+      return;
+    }
+    data.description =
+      typeof body.description === "string" && body.description.trim() === ""
+        ? null
+        : body.description;
+  }
+
+  for (const field of ["status", "priority", "tags"] as const) {
+    if (body[field] === undefined) continue;
+    if (body[field] !== null && typeof body[field] !== "string") {
+      res.status(400).json({ message: `Invalid ${field}` });
+      return;
+    }
+    data[field] = body[field] === "" ? null : body[field];
+  }
+
+  for (const field of ["startDate", "dueDate"] as const) {
+    if (body[field] === undefined) continue;
+    if (body[field] === null || body[field] === "") {
+      data[field] = null;
+      continue;
+    }
+    const date = new Date(body[field]);
+    if (isNaN(date.getTime())) {
+      res.status(400).json({ message: `Invalid ${field}` });
+      return;
+    }
+    data[field] = date;
+  }
+
+  if (body.points !== undefined) {
+    if (body.points === null || body.points === "") {
+      data.points = null;
+    } else {
+      const points = Number(body.points);
+      if (!Number.isInteger(points) || points < 0) {
+        res.status(400).json({ message: "Invalid points" });
+        return;
+      }
+      data.points = points;
+    }
+  }
+
+  if (body.authorUserId !== undefined) {
+    const authorUserId = Number(body.authorUserId);
+    if (!Number.isInteger(authorUserId) || authorUserId <= 0) {
+      res.status(400).json({ message: "Invalid authorUserId" });
+      return;
+    }
+    data.authorUserId = authorUserId;
+  }
+
+  if (body.assignedUserId !== undefined) {
+    if (body.assignedUserId === null || body.assignedUserId === "") {
+      data.assignedUserId = null;
+    } else {
+      const assignedUserId = Number(body.assignedUserId);
+      if (!Number.isInteger(assignedUserId) || assignedUserId <= 0) {
+        res.status(400).json({ message: "Invalid assignedUserId" });
+        return;
+      }
+      data.assignedUserId = assignedUserId;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    res.status(400).json({ message: "No valid fields provided to update" });
+    return;
+  }
+
+  try {
+    const updatedTask = await prisma.task.update({
+      where: { id },
+      data,
+      include: {
+        author: true,
+        assignee: true,
+        comments: true,
+        attachments: true,
+      },
+    });
+    res.json(updatedTask);
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      res.status(404).json({ message: "Task not found" });
+      return;
+    }
+    if (error.code === "P2003") {
+      res
+        .status(400)
+        .json({ message: "Author or assignee does not exist" });
+      return;
+    }
+    res.status(500).json({ message: `Error updating task: ${error.message}` });
+  }
+};
+
 export const updateTasksStatus = async (
   req: Request,
   res: Response,

@@ -7,9 +7,11 @@ import {
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "@/state/api";
-import { EllipsisVertical, MessageSquareMore, Plus, Trash2 } from "lucide-react";
+import { EllipsisVertical, MessageSquareMore, Pencil, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import Image from "next/image";
+import { useState } from "react";
+import ModalEditTask from "@/components/ModalEditTask";
 
 type BoardProps = {
     id: string;
@@ -152,6 +154,7 @@ const Task = ({ task }: TaskProps) => {
     }));
 
     const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+    const [isEditOpen, setIsEditOpen] = useState(false);
 
     const handleDelete = async () => {
         if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
@@ -205,16 +208,27 @@ const Task = ({ task }: TaskProps) => {
                             ))}
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        title="Delete task"
-                        aria-label={`Delete task ${task.title}`}
-                        className="text-brand-900 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <Trash2 size={18} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setIsEditOpen(true)}
+                            title="Edit task"
+                            aria-label={`Edit task ${task.title}`}
+                            className="text-brand-900 flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Pencil size={18} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            title="Delete task"
+                            aria-label={`Delete task ${task.title}`}
+                            className="text-brand-900 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 </div>
                 <div className="my-3 flex justify-between">
                     <h4 className="text-md font bold text-brand-900">{task.title}</h4>
@@ -263,6 +277,13 @@ const Task = ({ task }: TaskProps) => {
                     </div>
                 </div>
             </div>
+            {isEditOpen && (
+                <ModalEditTask
+                    isOpen={isEditOpen}
+                    task={task}
+                    onClose={() => setIsEditOpen(false)}
+                />
+            )}
         </div>
     );
 };

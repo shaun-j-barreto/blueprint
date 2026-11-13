@@ -73,6 +73,20 @@ export interface Task {
   comments?: Comment[];
   attachments?: Attachment[];
 }
+export type UpdateTaskPayload = {
+  taskId: number;
+  title?: string;
+  description?: string | null;
+  status?: Status;
+  priority?: Priority;
+  tags?: string | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  points?: number | null;
+  authorUserId?: number;
+  assignedUserId?: number | null;
+};
+
 export const api = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL }),
   reducerPath: "api",
@@ -112,6 +126,16 @@ export const api = createApi({
       }),
       invalidatesTags: ["Tasks"],
     }),
+    updateTask: build.mutation<Task, UpdateTaskPayload>({
+      query: ({ taskId, ...body }) => ({
+        url: `tasks/${taskId}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "Tasks", id: taskId },
+      ],
+    }),
     deleteTask: build.mutation<{ message: string; id: number }, number>({
       query: (taskId) => ({
         url: `tasks/${taskId}`,
@@ -140,6 +164,10 @@ export const api = createApi({
     }),
     search: build.query<SearchResults, string>({
       query: (query) => `search?query=${query}`,
+      providesTags: (result) =>
+        result?.tasks
+          ? result.tasks.map(({ id }) => ({ type: "Tasks" as const, id }))
+          : [],
     }),
     getUsers: build.query<User[], void>({
       query: () => "users",
@@ -158,6 +186,7 @@ export const {
   useDeleteProjectMutation,
   useGetTasksQuery,
   useCreateTaskMutation,
+  useUpdateTaskMutation,
   useDeleteTaskMutation,
   useUpdateTaskStatusMutation,
   useSearchQuery,

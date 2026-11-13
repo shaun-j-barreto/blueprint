@@ -1,9 +1,15 @@
 "use client";
 
 import Modal from "@/components/Modal";
-import { Status, Priority, useCreateTaskMutation } from "@/state/api";
-import { useState } from "react";
-import { formatISO } from "date-fns";
+import { Status, Priority, User, useCreateTaskMutation, useGetUsersQuery } from "@/state/api";
+import { useMemo, useState } from "react";
+import {
+    dateInputStyles,
+    inputStyles,
+    labelStyles,
+    selectStyles,
+    toIsoDate,
+} from "@/components/taskFormStyles";
 
 type Props = {
     isOpen: boolean;
@@ -11,17 +17,13 @@ type Props = {
     id?: string | null;
 };
 
-const toIsoDate = (value: string) => {
-    if (!value) return undefined;
-
-    const date = new Date(value);
-    if (isNaN(date.getTime())) return undefined;
-
-    return formatISO(date, { representation: "complete" });
-};
-
 const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     const [createTask, { isLoading }] = useCreateTaskMutation();
+    const {
+        data: users = [],
+        isLoading: isUsersLoading,
+        isError: isUsersError,
+    } = useGetUsersQuery();
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [status, setStatus] = useState<Status>(Status.ToDo);
@@ -40,6 +42,17 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     const authorIdNumber = Number(authorUserId);
     const projectIdNumber = hasProjectId ? Number(id) : Number(projectId);
     const assignedIdNumber = assignedUserId ? Number(assignedUserId) : null;
+
+    const sortedUsers = useMemo(
+        () =>
+            [...users]
+                .filter(
+                    (user): user is User & { userId: number } =>
+                        typeof user.userId === "number",
+                )
+                .sort((a, b) => a.username.localeCompare(b.username)),
+        [users],
+    );
 
     const isValidId = (value: number) => Number.isInteger(value) && value > 0;
 
@@ -97,14 +110,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
             );
         }
     };
-
-    const selectStyles =
-        "block w-full rounded border border-gray-300 px-3 py-2 dark:border-dark-tertiary dark:bg-dark-tertiary dark:text-white dark:focus:outline-none";
-    // Removed shadow-md and refined border focus for a flatter, plain look
-    const inputStyles =
-        "w-full rounded border border-brand-600/40 p-2.5 text-sm text-brand-900 outline-none focus:border-brand-600 transition-colors placeholder:text-brand-900/40";
-    const dateInputStyles = `${inputStyles} [color-scheme:light] dark:[color-scheme:dark]`;
-    const labelStyles = "mb-1 block text-xs font-medium text-brand-900/60";
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} name="Create New Task">
@@ -259,32 +264,63 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
                 </div>
                 <div>
                     <label htmlFor="task-author-id" className={labelStyles}>
-                        Author User ID
+                        Author
                     </label>
-                    <input
+                    <select
                         id="task-author-id"
-                        type="number"
-                        min="1"
-                        className={inputStyles}
-                        placeholder="Author User ID"
+                        className={selectStyles}
                         value={authorUserId}
                         onChange={(e) => setAuthorUserId(e.target.value)}
-                    />
+                        disabled={isUsersLoading}
+                    >
+                        <option value="" disabled className="text-brand-900 bg-brand-200">
+                            {isUsersLoading
+                                ? "Loading users…"
+                                : isUsersError
+                                    ? "Failed to load users"
+                                    : "Select author…"}
+                        </option>
+                        {sortedUsers.map((user) => (
+                            <option
+                                key={user.userId}
+                                value={String(user.userId)}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                {user.username} (#{user.userId})
+                            </option>
+                        ))}
+                    </select>
+                    {isUsersError && (
+                        <p className="mt-1 text-xs text-red-600">
+                            Could not load users. Please refresh and try again.
+                        </p>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
                     <div>
                         <label htmlFor="task-assigned-id" className={labelStyles}>
-                            Assigned User ID
+                            Assignee
                         </label>
-                        <input
+                        <select
                             id="task-assigned-id"
-                            type="number"
-                            min="1"
-                            className={inputStyles}
-                            placeholder="Optional"
+                            className={selectStyles}
                             value={assignedUserId}
                             onChange={(e) => setAssignedUserId(e.target.value)}
-                        />
+                            disabled={isUsersLoading}
+                        >
+                            <option value="" className="text-brand-900 bg-brand-200">
+                                Unassigned
+                            </option>
+                            {sortedUsers.map((user) => (
+                                <option
+                                    key={user.userId}
+                                    value={String(user.userId)}
+                                    className="text-brand-900 bg-brand-200"
+                                >
+                                    {user.username} (#{user.userId})
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label htmlFor="task-points" className={labelStyles}>

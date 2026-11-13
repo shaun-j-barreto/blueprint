@@ -1,41 +1,61 @@
 import { useAppSelector } from "@/app/redux";
 import Header from "@/components/Header";
 import { dataGridClassNames, dataGridSxStyles } from "@/lib/utils";
-import { useDeleteTaskMutation, useGetTasksQuery } from "@/state/api";
+import { Task, useDeleteTaskMutation, useGetTasksQuery } from "@/state/api";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
+import ModalEditTask from "@/components/ModalEditTask";
 
 type Props = {
     id: string;
     setIsModalNewTaskOpen: (isOpen: boolean) => void;
 };
 
-const DeleteTaskCell = ({ id }: { id: number }) => {
+const TaskRowActions = ({ task }: { task: Task }) => {
     const [deleteTask, { isLoading }] = useDeleteTaskMutation();
+    const [isEditOpen, setIsEditOpen] = useState(false);
 
     const handleDelete = async () => {
-        if (!window.confirm("Delete this task? This cannot be undone.")) return;
+        if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
 
         try {
-            await deleteTask(id).unwrap();
+            await deleteTask(task.id).unwrap();
         } catch {
             window.alert("Failed to delete the task. Please try again.");
         }
     };
 
     return (
-        <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isLoading}
-            title="Delete task"
-            aria-label="Delete task"
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-brand-800 transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-            <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+            <button
+                type="button"
+                onClick={() => setIsEditOpen(true)}
+                title="Edit task"
+                aria-label={`Edit task ${task.title}`}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-brand-800 transition-colors hover:bg-brand-400 hover:text-brand-900"
+            >
+                <Pencil className="h-4 w-4" />
+            </button>
+            <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isLoading}
+                title="Delete task"
+                aria-label={`Delete task ${task.title}`}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-brand-800 transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                <Trash2 className="h-4 w-4" />
+            </button>
+            {isEditOpen && (
+                <ModalEditTask
+                    isOpen={isEditOpen}
+                    task={task}
+                    onClose={() => setIsEditOpen(false)}
+                />
+            )}
+        </div>
     );
 };
 
@@ -108,11 +128,11 @@ const columns: GridColDef[] = [
     {
         field: "actions",
         headerName: "",
-        width: 64,
+        width: 92,
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
-        renderCell: (params) => <DeleteTaskCell id={params.row.id as number} />,
+        renderCell: (params) => <TaskRowActions task={params.row as Task} />,
     },
 ];
 
