@@ -35,6 +35,7 @@ const ModalNewProject = ({ isOpen, onClose }: Props) => {
     // Removed shadow-md and refined border focus for a flatter, plain look
     const inputStyles =
         "w-full rounded border border-brand-600/40 p-2.5 text-sm text-brand-900 outline-none focus:border-brand-600 transition-colors placeholder:text-brand-900/40";
+    const dateInputStyles = `${inputStyles} [color-scheme:light] dark:[color-scheme:dark]`;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} name="Create New Project">
@@ -65,7 +66,7 @@ const ModalNewProject = ({ isOpen, onClose }: Props) => {
                         <label className="block text-xs font-medium text-brand-900/60 mb-1">Start Date</label>
                         <input
                             type="date"
-                            className={inputStyles}
+                            className={dateInputStyles}
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
                         />
@@ -74,7 +75,7 @@ const ModalNewProject = ({ isOpen, onClose }: Props) => {
                         <label className="block text-xs font-medium text-brand-900/60 mb-1">End Date</label>
                         <input
                             type="date"
-                            className={inputStyles}
+                            className={dateInputStyles}
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
                         />

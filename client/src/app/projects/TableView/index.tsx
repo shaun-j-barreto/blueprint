@@ -1,14 +1,42 @@
 import { useAppSelector } from "@/app/redux";
 import Header from "@/components/Header";
 import { dataGridClassNames, dataGridSxStyles } from "@/lib/utils";
-import { useGetTasksQuery } from "@/state/api";
+import { useDeleteTaskMutation, useGetTasksQuery } from "@/state/api";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import React, { useMemo } from "react";
 import { format } from "date-fns";
+import { Trash2 } from "lucide-react";
 
 type Props = {
     id: string;
     setIsModalNewTaskOpen: (isOpen: boolean) => void;
+};
+
+const DeleteTaskCell = ({ id }: { id: number }) => {
+    const [deleteTask, { isLoading }] = useDeleteTaskMutation();
+
+    const handleDelete = async () => {
+        if (!window.confirm("Delete this task? This cannot be undone.")) return;
+
+        try {
+            await deleteTask(id).unwrap();
+        } catch {
+            window.alert("Failed to delete the task. Please try again.");
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isLoading}
+            title="Delete task"
+            aria-label="Delete task"
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-brand-800 transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            <Trash2 className="h-4 w-4" />
+        </button>
+    );
 };
 
 const columns: GridColDef[] = [
@@ -76,6 +104,15 @@ const columns: GridColDef[] = [
         headerName: "Assignee",
         width: 120,
         renderCell: (params) => params.row?.assignee?.username || "Unassigned",
+    },
+    {
+        field: "actions",
+        headerName: "",
+        width: 64,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => <DeleteTaskCell id={params.row.id as number} />,
     },
 ];
 

@@ -1,14 +1,28 @@
-import { Task } from '@/state/api';
+'use client';
+
+import { Task, useDeleteTaskMutation } from '@/state/api';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import React from 'react';
-import { Calendar, User, Tag } from 'lucide-react';
+import { Calendar, User, Tag, Trash2 } from 'lucide-react';
 
 type TaskCardProps = {
     task: Task;
 }
 
 const TaskCard = ({ task }: TaskCardProps) => {
+    const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+
+    const handleDelete = async () => {
+        if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+
+        try {
+            await deleteTask(task.id).unwrap();
+        } catch {
+            window.alert("Failed to delete the task. Please try again.");
+        }
+    };
+
     const renderDate = (dateString?: string) => {
         if (!dateString) return "Not set";
         const date = new Date(dateString);
@@ -37,15 +51,27 @@ const TaskCard = ({ task }: TaskCardProps) => {
                             </span>
                         )}
                     </div>
-                    <span className='text-xs font-mono text-brand-800'>#{task.id}</span>
+                    <div className='flex items-center gap-2'>
+                        <span className='text-xs font-mono text-brand-800'>#{task.id}</span>
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            title="Delete task"
+                            aria-label={`Delete task ${task.title}`}
+                            className='flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-brand-800 transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50'
+                        >
+                            <Trash2 className='h-4 w-4' />
+                        </button>
+                    </div>
                 </div>
 
                 {/* 2. Image Attachment Layer */}
                 {task.attachments && task.attachments.length > 0 && (
                     <div className="relative w-full h-44 mb-4 rounded-lg overflow-hidden border border-brand-500 bg-brand-300">
                         <Image
-                            src={`/${task.attachments[0].fileUrl || task.attachments[0].fileUrl}`}
-                            alt={task.attachments[0].filename || task.attachments[0].filename || "Attachment"}
+                            src={`/${task.attachments[0].fileURL}`}
+                            alt={task.attachments[0].fileName || "Attachment"}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             className="object-cover"

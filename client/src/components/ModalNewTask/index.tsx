@@ -1,3 +1,5 @@
+"use client";
+
 import Modal from "@/components/Modal";
 import { Status, Priority, useCreateTaskMutation } from "@/state/api";
 import { useState } from "react";
@@ -7,6 +9,15 @@ type Props = {
     isOpen: boolean;
     onClose: () => void;
     id?: string | null;
+};
+
+const toIsoDate = (value: string) => {
+    if (!value) return undefined;
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return undefined;
+
+    return formatISO(date, { representation: "complete" });
 };
 
 const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
@@ -21,42 +32,82 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     const [authorUserId, setAuthorUserId] = useState("");
     const [assignedUserId, setAssignedUserId] = useState("");
     const [projectId, setProjectId] = useState("");
+    const [points, setPoints] = useState("");
+    const [error, setError] = useState("");
 
-    const handleSubmit = async () => {
-        if (!title || !authorUserId || !(id !== null || projectId)) return;
-        const formattedstartDate = formatISO(new Date(startDate), {
-            representation: "complete",
-        });
-        const formatteddueDate = formatISO(new Date(dueDate), {
-            representation: "complete",
-        });
+    // An empty string id (invalid route param) must not count as a project.
+    const hasProjectId = id !== null && id !== "";
+    const authorIdNumber = Number(authorUserId);
+    const projectIdNumber = hasProjectId ? Number(id) : Number(projectId);
+    const assignedIdNumber = assignedUserId ? Number(assignedUserId) : null;
 
-        await createTask({
-            title,
-            description,
-            status,
-            priority,
-            tags,
-            startDate: formattedstartDate,
-            dueDate: formatteddueDate,
-            authorUserId: parseInt(authorUserId),
-            assignedUserId: parseInt(assignedUserId),
-            projectId: id !== null ? Number(id) : Number(projectId),
-        });
+    const isValidId = (value: number) => Number.isInteger(value) && value > 0;
+
+    const isFormValid =
+        title.trim().length > 0 &&
+        isValidId(authorIdNumber) &&
+        isValidId(projectIdNumber) &&
+        (assignedIdNumber === null || isValidId(assignedIdNumber));
+
+    const resetForm = () => {
+        setTitle("");
+        setDescription("");
+        setStatus(Status.ToDo);
+        setPriority(Priority.Backlog);
+        setTags("");
+        setStartDate("");
+        setDueDate("");
+        setAuthorUserId("");
+        setAssignedUserId("");
+        setProjectId("");
+        setPoints("");
+        setError("");
     };
 
-    const isFormValid = () => {
-        return title && authorUserId && !(id !== null || projectId);
+    const handleClose = () => {
+        setError("");
+        onClose();
+    };
+
+    const handleSubmit = async () => {
+        if (!isFormValid) return;
+
+        setError("");
+
+        try {
+            await createTask({
+                title: title.trim(),
+                description,
+                status,
+                priority,
+                tags,
+                startDate: toIsoDate(startDate),
+                dueDate: toIsoDate(dueDate),
+                points: points ? Number(points) : undefined,
+                authorUserId: authorIdNumber,
+                assignedUserId: assignedIdNumber ?? undefined,
+                projectId: projectIdNumber,
+            }).unwrap();
+
+            resetForm();
+            onClose();
+        } catch (err: any) {
+            setError(
+                err?.data?.message ?? "Failed to create the task. Please try again.",
+            );
+        }
     };
 
     const selectStyles =
-        "mb-4 block w-full rounded border border-gray-300 px-3 py-2 dark:border-dark-tertiary dark:bg-dark-tertiary dark:text-white dark:focus:outline-none";
+        "block w-full rounded border border-gray-300 px-3 py-2 dark:border-dark-tertiary dark:bg-dark-tertiary dark:text-white dark:focus:outline-none";
     // Removed shadow-md and refined border focus for a flatter, plain look
     const inputStyles =
         "w-full rounded border border-brand-600/40 p-2.5 text-sm text-brand-900 outline-none focus:border-brand-600 transition-colors placeholder:text-brand-900/40";
+    const dateInputStyles = `${inputStyles} [color-scheme:light] dark:[color-scheme:dark]`;
+    const labelStyles = "mb-1 block text-xs font-medium text-brand-900/60";
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} name="Create New Task">
+        <Modal isOpen={isOpen} onClose={handleClose} name="Create New Task">
             <form
                 className="mt-4 space-y-6"
                 onSubmit={(e) => {
@@ -64,145 +115,222 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
                     handleSubmit();
                 }}
             >
-                <input
-                    type="text"
-                    className={inputStyles}
-                    placeholder="Title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                />
-                <textarea
-                    className={inputStyles}
-                    placeholder="Description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                />
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
-                    <select
-                        className={selectStyles}
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as Status)}
-                    >
-                        <option value="" className="text-brand-900 bg-brand-200">
-                            Select Status
-                        </option>
-                        <option value={Status.ToDo} className="text-brand-900 bg-brand-200">
-                            To Do
-                        </option>
-                        <option
-                            value={Status.WorkInProgress}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Work In Progress
-                        </option>
-                        <option
-                            value={Status.UnderReview}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Under Review
-                        </option>
-                        <option
-                            value={Status.Completed}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Completed
-                        </option>
-                    </select>
-                    <select
-                        className={selectStyles}
-                        value={priority}
-                        onChange={(e) =>
-                            setPriority(Priority[e.target.value as keyof typeof Priority])
-                        }
-                    >
-                        <option value="" className="text-brand-900 bg-brand-200">
-                            Select Priority
-                        </option>
-                        <option
-                            value={Priority.Urgent}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Urgent
-                        </option>
-                        <option
-                            value={Priority.High}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            High
-                        </option>
-                        <option
-                            value={Priority.Medium}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Medium
-                        </option>
-                        <option
-                            value={Priority.Low}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Low
-                        </option>
-                        <option
-                            value={Priority.Backlog}
-                            className="text-brand-900 bg-brand-200"
-                        >
-                            Backlog
-                        </option>
-                    </select>
-                </div>
-                <input
-                    type="text"
-                    className={inputStyles}
-                    placeholder="Tags (comma separated)"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                />
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
+                <div>
+                    <label htmlFor="task-title" className={labelStyles}>
+                        Title
+                    </label>
                     <input
-                        type="date"
-                        className={inputStyles}
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                    />
-                    <input
-                        type="date"
-                        className={inputStyles}
-                        value={dueDate}
-                        onChange={(e) => setDueDate(e.target.value)}
-                    />
-                </div>
-                <input
-                    type="text"
-                    className={inputStyles}
-                    placeholder="Author User ID"
-                    value={authorUserId}
-                    onChange={(e) => setAuthorUserId(e.target.value)}
-                />
-                <input
-                    type="text"
-                    className={inputStyles}
-                    placeholder="Assigned User ID"
-                    value={assignedUserId}
-                    onChange={(e) => setAssignedUserId(e.target.value)}
-                />
-                {id === null && (
-                    <input
+                        id="task-title"
                         type="text"
                         className={inputStyles}
-                        placeholder="ProjectId"
-                        value={projectId}
-                        onChange={(e) => setProjectId(e.target.value)}
+                        placeholder="Title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
                     />
+                </div>
+                <div>
+                    <label htmlFor="task-description" className={labelStyles}>
+                        Description
+                    </label>
+                    <textarea
+                        id="task-description"
+                        className={inputStyles}
+                        placeholder="Description (optional)"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                    />
+                </div>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
+                    <div>
+                        <label htmlFor="task-status" className={labelStyles}>
+                            Status
+                        </label>
+                        <select
+                            id="task-status"
+                            className={selectStyles}
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value as Status)}
+                        >
+                            <option value={Status.ToDo} className="text-brand-900 bg-brand-200">
+                                To Do
+                            </option>
+                            <option
+                                value={Status.WorkInProgress}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Work In Progress
+                            </option>
+                            <option
+                                value={Status.UnderReview}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Under Review
+                            </option>
+                            <option
+                                value={Status.Completed}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Completed
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="task-priority" className={labelStyles}>
+                            Priority
+                        </label>
+                        <select
+                            id="task-priority"
+                            className={selectStyles}
+                            value={priority}
+                            onChange={(e) => setPriority(e.target.value as Priority)}
+                        >
+                            <option
+                                value={Priority.Urgent}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Urgent
+                            </option>
+                            <option
+                                value={Priority.High}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                High
+                            </option>
+                            <option
+                                value={Priority.Medium}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Medium
+                            </option>
+                            <option
+                                value={Priority.Low}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Low
+                            </option>
+                            <option
+                                value={Priority.Backlog}
+                                className="text-brand-900 bg-brand-200"
+                            >
+                                Backlog
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="task-tags" className={labelStyles}>
+                        Tags
+                    </label>
+                    <input
+                        id="task-tags"
+                        type="text"
+                        className={inputStyles}
+                        placeholder="Comma separated (optional)"
+                        value={tags}
+                        onChange={(e) => setTags(e.target.value)}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
+                    <div>
+                        <label htmlFor="task-start-date" className={labelStyles}>
+                            Start Date
+                        </label>
+                        <input
+                            id="task-start-date"
+                            type="date"
+                            className={dateInputStyles}
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="task-due-date" className={labelStyles}>
+                            Due Date
+                        </label>
+                        <input
+                            id="task-due-date"
+                            type="date"
+                            className={dateInputStyles}
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="task-author-id" className={labelStyles}>
+                        Author User ID
+                    </label>
+                    <input
+                        id="task-author-id"
+                        type="number"
+                        min="1"
+                        className={inputStyles}
+                        placeholder="Author User ID"
+                        value={authorUserId}
+                        onChange={(e) => setAuthorUserId(e.target.value)}
+                    />
+                </div>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
+                    <div>
+                        <label htmlFor="task-assigned-id" className={labelStyles}>
+                            Assigned User ID
+                        </label>
+                        <input
+                            id="task-assigned-id"
+                            type="number"
+                            min="1"
+                            className={inputStyles}
+                            placeholder="Optional"
+                            value={assignedUserId}
+                            onChange={(e) => setAssignedUserId(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="task-points" className={labelStyles}>
+                            Points
+                        </label>
+                        <input
+                            id="task-points"
+                            type="number"
+                            min="0"
+                            className={inputStyles}
+                            placeholder="Optional"
+                            value={points}
+                            onChange={(e) => setPoints(e.target.value)}
+                        />
+                    </div>
+                </div>
+                {!hasProjectId && (
+                    <div>
+                        <label htmlFor="task-project-id" className={labelStyles}>
+                            Project ID
+                        </label>
+                        <input
+                            id="task-project-id"
+                            type="number"
+                            min="1"
+                            className={inputStyles}
+                            placeholder="Project ID"
+                            value={projectId}
+                            onChange={(e) => setProjectId(e.target.value)}
+                        />
+                    </div>
+                )}
+
+                {error && (
+                    <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600">
+                        {error}
+                    </p>
                 )}
 
                 <button
                     type="submit"
-                    className={`focus:ring-brand-800 w-full rounded-md py-2.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none ${!isFormValid() || isLoading
+                    className={`focus:ring-brand-800 w-full rounded-md py-2.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none ${!isFormValid || isLoading
                             ? "bg-brand-700/20 text-brand-900/40 cursor-not-allowed"
                             : "bg-brand-700 text-brand-100 hover:bg-brand-800"
                         }`}
-                    disabled={!isFormValid() || isLoading}
+                    disabled={!isFormValid || isLoading}
                 >
                     {isLoading ? "Creating..." : "Create Task"}
                 </button>

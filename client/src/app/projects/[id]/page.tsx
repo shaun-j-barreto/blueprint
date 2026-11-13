@@ -20,7 +20,7 @@ const Project = () => {
     return (
         <div>
             <ModalNewTask isOpen={isModalNewTaskOpen} onClose={() => setIsModalNewTaskOpen(false)} id={id} />
-            <ProjectHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+            <ProjectHeader activeTab={activeTab} setActiveTab={setActiveTab} projectId={id} />
             {activeTab === "Board" && (
                 <BoardView id={id} setIsModalNewTaskOpen={setIsModalNewTaskOpen} />
             )}

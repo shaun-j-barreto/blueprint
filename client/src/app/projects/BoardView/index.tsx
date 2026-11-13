@@ -1,12 +1,13 @@
 import {
     Priority,
+    useDeleteTaskMutation,
     useGetTasksQuery,
     useUpdateTaskStatusMutation,
 } from "@/state/api";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "@/state/api";
-import { EllipsisVertical, MessageSquareMore, Plus } from "lucide-react";
+import { EllipsisVertical, MessageSquareMore, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import Image from "next/image";
 
@@ -150,6 +151,18 @@ const Task = ({ task }: TaskProps) => {
         }),
     }));
 
+    const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+
+    const handleDelete = async () => {
+        if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+
+        try {
+            await deleteTask(task.id).unwrap();
+        } catch {
+            window.alert("Failed to delete the task. Please try again.");
+        }
+    };
+
     const taskTagsSplit = task.tags ? task.tags.split(",") : [];
 
     const formattedStartDate = task.startDate
@@ -170,7 +183,7 @@ const Task = ({ task }: TaskProps) => {
         >
             {task.attachments && task.attachments.length > 0 && (
                 <Image
-                    src={`/${task.attachments[0].fileUrl}`}
+                    src={`/${task.attachments[0].fileURL}`}
                     alt="Task Image"
                     width={400}
                     height={400}
@@ -192,8 +205,15 @@ const Task = ({ task }: TaskProps) => {
                             ))}
                         </div>
                     </div>
-                    <button className="text-brand-900 flex h-6 w-4 shrink-0 cursor-pointer items-center justify-center">
-                        <EllipsisVertical size={26} />
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        title="Delete task"
+                        aria-label={`Delete task ${task.title}`}
+                        className="text-brand-900 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Trash2 size={18} />
                     </button>
                 </div>
                 <div className="my-3 flex justify-between">

@@ -1,4 +1,7 @@
+"use client";
+
 import Header from "@/components/Header";
+import { useDeleteProjectMutation } from "@/state/api";
 import {
     Clock,
     Filter,
@@ -7,13 +10,16 @@ import {
     PlusSquare,
     Share2,
     Table,
+    Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import ModalNewProject from "./ModalNewProject";
 
 type Props = {
     activeTab: string;
     setActiveTab: (tabName: string) => void;
+    projectId: string;
 };
 const TAB_CONFIG = [
     { name: "Board", icon: <Grid3X3 className="h-5 w-5" /> },
@@ -21,8 +27,34 @@ const TAB_CONFIG = [
     { name: "Timeline", icon: <Clock className="h-5 w-5" /> },
     { name: "Table", icon: <Table className="h-5 w-5" /> },
 ];
-const ProjectHeader = ({ activeTab, setActiveTab }: Props) => {
+const ProjectHeader = ({ activeTab, setActiveTab, projectId }: Props) => {
     const [isModalNewProjectOpen, setIsModalNewProjectOpen] = useState(false);
+    const [deleteProject, { isLoading: isDeletingProject }] =
+        useDeleteProjectMutation();
+    const router = useRouter();
+
+    const handleDeleteProject = async () => {
+        const id = Number(projectId);
+
+        if (!Number.isInteger(id) || id <= 0) {
+            window.alert("Invalid project identifier.");
+            return;
+        }
+
+        if (
+            !window.confirm(
+                "Delete this board and all of its tasks? This cannot be undone.",
+            )
+        )
+            return;
+
+        try {
+            await deleteProject(id).unwrap();
+            router.push("/home");
+        } catch {
+            window.alert("Failed to delete the board. Please try again.");
+        }
+    };
 
     return (
         <div className="px-4 xl:px-6">
@@ -31,12 +63,22 @@ const ProjectHeader = ({ activeTab, setActiveTab }: Props) => {
                 <Header
                     name="Product Blueprint"
                     buttonComponent={
-                        <button
-                            className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center rounded-md px-2 py-2"
-                            onClick={() => setIsModalNewProjectOpen(true)}
-                        >
-                            <PlusSquare className="mr-2 h-5 w-5" /> New Boards
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleDeleteProject}
+                                disabled={isDeletingProject}
+                                className="flex cursor-pointer items-center rounded-md border border-red-300 bg-red-50 px-2 py-2 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Trash2 className="mr-2 h-5 w-5" /> Delete
+                            </button>
+                            <button
+                                className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center rounded-md px-2 py-2"
+                                onClick={() => setIsModalNewProjectOpen(true)}
+                            >
+                                <PlusSquare className="mr-2 h-5 w-5" /> New Boards
+                            </button>
+                        </div>
                     }
                 />
             </div>

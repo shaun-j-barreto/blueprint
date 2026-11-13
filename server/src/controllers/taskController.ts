@@ -84,6 +84,39 @@ export const updateTasksStatus = async (
   }
 };
 
+export const deleteTask = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const { taskId } = req.params;
+  const id = Number(taskId);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ message: "Invalid task id" });
+    return;
+  }
+
+  try {
+    // Comments, attachments and task assignments reference Task with
+    // ON DELETE RESTRICT, so they must be removed first. The array form of
+    // $transaction runs these in order and rolls back if any step fails.
+    await prisma.$transaction([
+      prisma.comment.deleteMany({ where: { taskId: id } }),
+      prisma.attachment.deleteMany({ where: { taskId: id } }),
+      prisma.taskAssignment.deleteMany({ where: { taskId: id } }),
+      prisma.task.delete({ where: { id } }),
+    ]);
+
+    res.status(200).json({ message: "Task deleted successfully", id });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      res.status(404).json({ message: "Task not found" });
+      return;
+    }
+    res.status(500).json({ message: `Error deleting task: ${error.message}` });
+  }
+};
+
 export const getUserTasks = async (
   req: Request,
   res: Response,
@@ -100,6 +133,7 @@ export const getUserTasks = async (
       include: {
         author: true,
         assignee: true,
+        attachments: true,
       },
     });
     res.json(tasks);

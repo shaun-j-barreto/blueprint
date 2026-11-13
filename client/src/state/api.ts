@@ -48,8 +48,8 @@ export interface Team {
 
 export interface Attachment {
   id: number;
-  fileUrl: string;
-  filename: string;
+  fileURL: string;
+  fileName?: string | null;
   taskId: number;
   uploadedById: number;
 }
@@ -90,6 +90,13 @@ export const api = createApi({
       }),
       invalidatesTags: ["Projects"],
     }),
+    deleteProject: build.mutation<{ message: string; id: number }, number>({
+      query: (projectId) => ({
+        url: `projects/${projectId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Projects", "Tasks"],
+    }),
     getTasks: build.query<Task[], { projectId: number }>({
       query: ({ projectId }) => `tasks?projectId=${projectId}`,
       providesTags: (result) =>
@@ -104,6 +111,15 @@ export const api = createApi({
         body: task,
       }),
       invalidatesTags: ["Tasks"],
+    }),
+    deleteTask: build.mutation<{ message: string; id: number }, number>({
+      query: (taskId) => ({
+        url: `tasks/${taskId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, taskId) => [
+        { type: "Tasks", id: taskId },
+      ],
     }),
     updateTaskStatus: build.mutation<Task, { taskId: number; status: string }>({
       query: ({ taskId, status }) => ({
@@ -139,8 +155,10 @@ export const api = createApi({
 export const {
   useGetProjectsQuery,
   useCreateProjectMutation,
+  useDeleteProjectMutation,
   useGetTasksQuery,
   useCreateTaskMutation,
+  useDeleteTaskMutation,
   useUpdateTaskStatusMutation,
   useSearchQuery,
   useGetUsersQuery,
