@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import Image from "next/image";
 import { useState } from "react";
 import ModalEditTask from "@/components/ModalEditTask";
+import AttachmentList from "@/components/AttachmentList";
 
 type BoardProps = {
     id: string;
@@ -184,16 +185,8 @@ const Task = ({ task }: TaskProps) => {
             }}
             className={`bg-brand-200 border-brand-500/80 mb-4 rounded-md border shadow ${isDragging ? "opacity-50" : "opacity-100"}`}
         >
-            {task.attachments && task.attachments.length > 0 && (
-                <Image
-                    src={`/${task.attachments[0].fileURL}`}
-                    alt="Task Image"
-                    width={400}
-                    height={400}
-                    className="h-auto w-full rounded-t-md"
-                />
-            )}
             <div className="p-4 md:p-6">
+                <AttachmentList attachments={task.attachments} variant="board" />
                 <div className="flex items-start justify-between">
                     <div className="flex flex-1 flex-wrap items-center gap-2">
                         {task.priority && <PriorityTag priority={task.priority} />}

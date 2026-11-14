@@ -48,8 +48,10 @@ export interface Team {
 
 export interface Attachment {
   id: number;
-  fileURL: string;
+  fileURL?: string | null;
   fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
   taskId: number;
   uploadedById: number;
 }
@@ -87,6 +89,46 @@ export type UpdateTaskPayload = {
   assignedUserId?: number | null;
 };
 
+export type CreateTaskPayload = {
+  title: string;
+  description?: string;
+  status?: Status;
+  priority?: Priority;
+  tags?: string;
+  startDate?: string;
+  dueDate?: string;
+  points?: number;
+  projectId: number;
+  authorUserId: number;
+  assignedUserId?: number;
+  files?: File[];
+};
+
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(
+  /\/+$/,
+  "",
+);
+
+/**
+ * Uploaded attachments are served by the API; legacy seeded attachments are
+ * bare filenames served from the client's public folder.
+ */
+export const attachmentUrl = (attachment: Attachment): string =>
+  attachment.fileURL
+    ? `/${attachment.fileURL}`
+    : `${apiBaseUrl}/attachments/${attachment.id}/file`;
+
+export type AddTaskAttachmentsPayload = {
+  taskId: number;
+  files: File[];
+};
+
+export type DeleteAttachmentResult = {
+  message: string;
+  id: number;
+  taskId: number;
+};
+
 export const api = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL }),
   reducerPath: "api",
@@ -118,13 +160,52 @@ export const api = createApi({
           ? result.map(({ id }) => ({ type: "Tasks" as const, id }))
           : [{ type: "Tasks" as const }],
     }),
-    createTask: build.mutation<Task, Partial<Task>>({
-      query: (task) => ({
-        url: "tasks",
-        method: "POST",
-        body: task,
-      }),
+    createTask: build.mutation<Task, CreateTaskPayload>({
+      query: ({ files, ...task }) => {
+        // Multipart so files and the task are created in one request.
+        // fetchBaseQuery leaves FormData bodies untouched, letting the
+        // browser add the multipart boundary.
+        const body = new FormData();
+
+        for (const [key, value] of Object.entries(task)) {
+          if (value === undefined || value === null || value === "") continue;
+          body.append(key, String(value));
+        }
+
+        files?.forEach((file) => body.append("files", file));
+
+        return {
+          url: "tasks",
+          method: "POST",
+          body,
+        };
+      },
       invalidatesTags: ["Tasks"],
+    }),
+    addTaskAttachments: build.mutation<Task, AddTaskAttachmentsPayload>({
+      query: ({ taskId, files }) => {
+        const body = new FormData();
+        files.forEach((file) => body.append("files", file));
+
+        return {
+          url: `tasks/${taskId}/attachments`,
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "Tasks", id: taskId },
+      ],
+    }),
+    deleteAttachment: build.mutation<DeleteAttachmentResult, number>({
+      query: (attachmentId) => ({
+        url: `attachments/${attachmentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result) =>
+        result
+          ? [{ type: "Tasks" as const, id: result.taskId }]
+          : [{ type: "Tasks" as const }],
     }),
     updateTask: build.mutation<Task, UpdateTaskPayload>({
       query: ({ taskId, ...body }) => ({
@@ -186,6 +267,8 @@ export const {
   useDeleteProjectMutation,
   useGetTasksQuery,
   useCreateTaskMutation,
+  useAddTaskAttachmentsMutation,
+  useDeleteAttachmentMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
   useUpdateTaskStatusMutation,

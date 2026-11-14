@@ -14,7 +14,7 @@ const Modal = ({ children, isOpen, onClose, name }: Props) => {
     if (!isOpen) return null;
     return ReactDOM.createPortal(
         <div className="indset-0 bg-brand-700/50 fixed flex h-full w-full items-center justify-center overflow-y-auto p-4">
-            <div className="bg-brand-200 w-full max-w-2xl rounded-lg p-4 shadow-lg">
+            <div className="bg-brand-200 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg p-4 shadow-lg">
                 <Header
                     name={name}
                     buttonComponent={

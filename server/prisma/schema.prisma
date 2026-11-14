@@ -87,13 +87,23 @@ model TaskAssignment {
 
 model Attachment {
   id           Int     @id @default(autoincrement())
-  fileURL      String
+  fileURL      String?
   fileName     String?
+  mimeType     String?
+  fileSize     Int?
   taskId       Int
   uploadedById Int
 
-  task       Task @relation(fields: [taskId], references: [id])
-  uploadedBy User @relation(fields: [uploadedById], references: [userId])
+  task       Task            @relation(fields: [taskId], references: [id])
+  uploadedBy User            @relation(fields: [uploadedById], references: [userId])
+  file       AttachmentFile?
+}
+
+model AttachmentFile {
+  attachmentId Int   @id
+  data         Bytes
+
+  attachment Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
 }
 
 model Comment {

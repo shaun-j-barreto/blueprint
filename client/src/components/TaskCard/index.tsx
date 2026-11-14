@@ -2,10 +2,10 @@
 
 import { Task, useDeleteTaskMutation } from '@/state/api';
 import { format } from 'date-fns';
-import Image from 'next/image';
 import React, { useState } from 'react';
 import { Calendar, User, Tag, Pencil, Trash2 } from 'lucide-react';
 import ModalEditTask from '@/components/ModalEditTask';
+import AttachmentList from '@/components/AttachmentList';
 
 type TaskCardProps = {
     task: Task;
@@ -78,19 +78,8 @@ const TaskCard = ({ task }: TaskCardProps) => {
                     </div>
                 </div>
 
-                {/* 2. Image Attachment Layer */}
-                {task.attachments && task.attachments.length > 0 && (
-                    <div className="relative w-full h-44 mb-4 rounded-lg overflow-hidden border border-brand-500 bg-brand-300">
-                        <Image
-                            src={`/${task.attachments[0].fileURL}`}
-                            alt={task.attachments[0].fileName || "Attachment"}
-                            fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            className="object-cover"
-                            priority={false}
-                        />
-                    </div>
-                )}
+                {/* 2. Attachment Layer */}
+                <AttachmentList attachments={task.attachments} />
 
                 {/* 3. Typography Content Body */}
                 <div className='mb-4'>

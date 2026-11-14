@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma.js";
+import {
+  attachmentCreatePayload,
+} from "../lib/attachments.js";
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   const { projectId } = req.query;
@@ -27,37 +30,111 @@ export const createTask = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const {
-    title,
-    description,
-    status,
-    priority,
-    tags,
-    startDate,
-    dueDate,
-    points,
-    projectId,
-    authorUserId,
-    assignedUserId,
-  } = req.body;
+  // multipart/form-data fields arrive as strings; plain JSON callers keep
+  // their original types. Everything is normalised below.
+  const body = req.body ?? {};
+  const files = Array.isArray(req.files) ? req.files : [];
+
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  if (title === "") {
+    res.status(400).json({ message: "Title is required" });
+    return;
+  }
+
+  const projectId = Number(body.projectId);
+  if (!Number.isInteger(projectId) || projectId <= 0) {
+    res.status(400).json({ message: "Invalid projectId" });
+    return;
+  }
+
+  const authorUserId = Number(body.authorUserId);
+  if (!Number.isInteger(authorUserId) || authorUserId <= 0) {
+    res.status(400).json({ message: "Invalid authorUserId" });
+    return;
+  }
+
+  let assignedUserId: number | null = null;
+  if (
+    body.assignedUserId !== undefined &&
+    body.assignedUserId !== null &&
+    body.assignedUserId !== ""
+  ) {
+    assignedUserId = Number(body.assignedUserId);
+    if (!Number.isInteger(assignedUserId) || assignedUserId <= 0) {
+      res.status(400).json({ message: "Invalid assignedUserId" });
+      return;
+    }
+  }
+
+  let points: number | null = null;
+  if (body.points !== undefined && body.points !== null && body.points !== "") {
+    points = Number(body.points);
+    if (!Number.isInteger(points) || points < 0) {
+      res.status(400).json({ message: "Invalid points" });
+      return;
+    }
+  }
+
+  const dates: { startDate: Date | null; dueDate: Date | null } = {
+    startDate: null,
+    dueDate: null,
+  };
+  for (const field of ["startDate", "dueDate"] as const) {
+    const value = body[field];
+    if (value === undefined || value === null || value === "") continue;
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+      res.status(400).json({ message: `Invalid ${field}` });
+      return;
+    }
+    dates[field] = date;
+  }
+
+  const optionalText = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() !== "" ? value : null;
+
   try {
-    const newtask = await prisma.task.create({
+    const newTask = await prisma.task.create({
       data: {
         title,
-        description,
-        status,
-        priority,
-        tags,
-        startDate,
-        dueDate,
+        description: optionalText(body.description),
+        status: optionalText(body.status),
+        priority: optionalText(body.priority),
+        tags: optionalText(body.tags),
+        startDate: dates.startDate,
+        dueDate: dates.dueDate,
         points,
         projectId,
         authorUserId,
         assignedUserId,
+        // Nested create keeps the task and its attachment blobs in one
+        // transaction: a rejected file means no task is created.
+        ...(files.length > 0
+          ? {
+              attachments: {
+                create: files.map((file) =>
+                  attachmentCreatePayload(file, authorUserId),
+                ),
+              },
+            }
+          : {}),
+      },
+      include: {
+        author: true,
+        assignee: true,
+        comments: true,
+        attachments: true,
       },
     });
-    res.status(201).json(newtask);
+    res.status(201).json(newTask);
   } catch (error: any) {
+    if (error.code === "P2003") {
+      res.status(400).json({
+        message: "Project, author, or assignee does not exist",
+      });
+      return;
+    }
     res.status(500).json({ message: `Error creating task: ${error.message}` });
   }
 };

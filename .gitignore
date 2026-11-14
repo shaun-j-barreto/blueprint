@@ -9,3 +9,4 @@ client/.DS_Store
 server/.DS_Store
 client/.next/
 server/src/generated/
+*.tsbuildinfo

@@ -1,8 +1,10 @@
 "use client";
 
 import Modal from "@/components/Modal";
+import AttachmentPicker from "@/components/AttachmentPicker";
 import { Status, Priority, User, useCreateTaskMutation, useGetUsersQuery } from "@/state/api";
 import { useMemo, useState } from "react";
+import { MAX_ATTACHMENT_FILES } from "@/lib/attachments";
 import {
     dateInputStyles,
     inputStyles,
@@ -35,6 +37,7 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     const [assignedUserId, setAssignedUserId] = useState("");
     const [projectId, setProjectId] = useState("");
     const [points, setPoints] = useState("");
+    const [files, setFiles] = useState<File[]>([]);
     const [error, setError] = useState("");
 
     // An empty string id (invalid route param) must not count as a project.
@@ -74,11 +77,13 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
         setAssignedUserId("");
         setProjectId("");
         setPoints("");
+        setFiles([]);
         setError("");
     };
 
     const handleClose = () => {
         setError("");
+        setFiles([]);
         onClose();
     };
 
@@ -100,6 +105,7 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
                 authorUserId: authorIdNumber,
                 assignedUserId: assignedIdNumber ?? undefined,
                 projectId: projectIdNumber,
+                files,
             }).unwrap();
 
             resetForm();
@@ -353,6 +359,16 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
                         />
                     </div>
                 )}
+
+                <div>
+                    <span className={labelStyles}>Attachments</span>
+                    <AttachmentPicker
+                        files={files}
+                        onFilesChange={setFiles}
+                        maxAdditionalFiles={MAX_ATTACHMENT_FILES}
+                        disabled={isLoading}
+                    />
+                </div>
 
                 {error && (
                     <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600">

@@ -1,16 +1,22 @@
 "use client";
 
 import Modal from "@/components/Modal";
+import AttachmentPicker from "@/components/AttachmentPicker";
+import AttachmentList from "@/components/AttachmentList";
 import {
+    Attachment,
     Priority,
     Status,
     Task,
     User,
+    useAddTaskAttachmentsMutation,
+    useDeleteAttachmentMutation,
     useGetProjectsQuery,
     useGetUsersQuery,
     useUpdateTaskMutation,
 } from "@/state/api";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { MAX_ATTACHMENT_FILES } from "@/lib/attachments";
 import {
     dateInputStyles,
     inputStyles,
@@ -43,6 +49,8 @@ const priorityOptions = [
 
 const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const [updateTask, { isLoading }] = useUpdateTaskMutation();
+    const [addTaskAttachments] = useAddTaskAttachmentsMutation();
+    const [deleteAttachment] = useDeleteAttachmentMutation();
     const {
         data: users = [],
         isLoading: isUsersLoading,
@@ -70,7 +78,37 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const [points, setPoints] = useState(
         typeof task.points === "number" ? String(task.points) : "",
     );
+    const [attachments, setAttachments] = useState<Attachment[]>(
+        () => task.attachments ?? [],
+    );
+    const [files, setFiles] = useState<File[]>([]);
+    const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>([]);
+    const [isSavingChanges, setIsSavingChanges] = useState(false);
     const [error, setError] = useState("");
+
+    // Attachment edits are staged locally, so re-opening the modal must start
+    // from the task as it currently exists. Cancel therefore changes nothing.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        setTitle(task.title ?? "");
+        setDescription(task.description ?? "");
+        setStatus(task.status ?? Status.ToDo);
+        setPriority(task.priority ?? Priority.Backlog);
+        setTags(task.tags ?? "");
+        setStartDate(toDateInputValue(task.startDate));
+        setDueDate(toDateInputValue(task.dueDate));
+        setAuthorUserId(task.authorUserId ? String(task.authorUserId) : "");
+        setAssignedUserId(task.assignedUserId ? String(task.assignedUserId) : "");
+        setPoints(typeof task.points === "number" ? String(task.points) : "");
+        setAttachments(task.attachments ?? []);
+        setFiles([]);
+        setRemovedAttachmentIds([]);
+        setError("");
+        // Intentionally runs only when the modal opens: task prop refreshes
+        // (e.g. after an attachment mutation) must not clobber staged edits.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     const sortedUsers = useMemo(
         () =>
@@ -138,11 +176,32 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
         isPointsValid &&
         (assignedIdNumber === null || isValidId(assignedIdNumber));
 
+    const isBusy = isLoading || isSavingChanges;
+    const attachmentSlots = Math.max(
+        MAX_ATTACHMENT_FILES - attachments.length,
+        0,
+    );
+
+    const handleRemoveAttachment = (attachment: Attachment) => {
+        setAttachments((current) =>
+            current.filter((item) => item.id !== attachment.id),
+        );
+        setRemovedAttachmentIds((current) =>
+            current.includes(attachment.id)
+                ? current
+                : [...current, attachment.id],
+        );
+        setError("");
+    };
+
     const handleSubmit = async () => {
-        if (!isFormValid) return;
+        if (!isFormValid || isBusy) return;
 
         setError("");
+        setIsSavingChanges(true);
 
+        // 1. Save the task fields first. Everything below only runs once this
+        // succeeds, so a bad form value never leaves half-applied attachments.
         try {
             await updateTask({
                 taskId: task.id,
@@ -157,13 +216,60 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                 authorUserId: authorIdNumber,
                 assignedUserId: assignedIdNumber,
             }).unwrap();
-
-            onClose();
         } catch (err: any) {
             setError(
                 err?.data?.message ?? "Failed to update the task. Please try again.",
             );
+            setIsSavingChanges(false);
+            return;
         }
+
+        // 2. Apply staged removals. A 404 means the attachment is already gone,
+        // so it counts as success and retries cannot get stuck.
+        const failedRemovals: number[] = [];
+        let removalError = "";
+
+        for (const attachmentId of removedAttachmentIds) {
+            try {
+                await deleteAttachment(attachmentId).unwrap();
+            } catch (err: any) {
+                if (err?.status === 404) continue;
+                failedRemovals.push(attachmentId);
+                removalError =
+                    err?.data?.message ?? "Failed to remove an attachment.";
+            }
+        }
+
+        if (failedRemovals.length > 0) {
+            setRemovedAttachmentIds(failedRemovals);
+            setError(
+                `Task details were saved, but some attachments could not be removed: ${removalError}`,
+            );
+            setIsSavingChanges(false);
+            return;
+        }
+
+        setRemovedAttachmentIds([]);
+
+        // 3. Upload new files last, once the freed-up slots actually exist on
+        // the server (the endpoint enforces the 5-file cap in a transaction).
+        if (files.length > 0) {
+            try {
+                await addTaskAttachments({ taskId: task.id, files }).unwrap();
+                setFiles([]);
+            } catch (err: any) {
+                setError(
+                    `Task details were saved, but uploading the new attachments failed: ${
+                        err?.data?.message ?? "Please try again."
+                    }`,
+                );
+                setIsSavingChanges(false);
+                return;
+            }
+        }
+
+        setIsSavingChanges(false);
+        onClose();
     };
 
     return (
@@ -369,6 +475,35 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                     </div>
                 </div>
 
+                <div>
+                    <span className={labelStyles}>Attachments</span>
+                    {attachments.length > 0 ? (
+                        <div className="mb-2">
+                            <AttachmentList
+                                attachments={attachments}
+                                variant="compact"
+                                onRemove={handleRemoveAttachment}
+                                removeDisabled={isBusy}
+                            />
+                        </div>
+                    ) : (
+                        <p className="text-brand-900/50 mb-2 text-xs">
+                            No attachments yet.
+                        </p>
+                    )}
+                    <AttachmentPicker
+                        files={files}
+                        onFilesChange={setFiles}
+                        maxAdditionalFiles={attachmentSlots}
+                        disabled={isBusy}
+                        filesLabel="New files — uploaded when you save"
+                    />
+                    <p className="text-brand-900/50 mt-1 text-xs">
+                        {attachments.length + files.length} of{" "}
+                        {MAX_ATTACHMENT_FILES} attachments
+                    </p>
+                </div>
+
                 {error && (
                     <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600">
                         {error}
@@ -377,13 +512,13 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
 
                 <button
                     type="submit"
-                    className={`focus:ring-brand-800 w-full rounded-md py-2.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none ${!isFormValid || isLoading
+                    className={`focus:ring-brand-800 w-full rounded-md py-2.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none ${!isFormValid || isBusy
                             ? "bg-brand-700/20 text-brand-900/40 cursor-not-allowed"
                             : "bg-brand-700 text-brand-100 hover:bg-brand-800"
                         }`}
-                    disabled={!isFormValid || isLoading}
+                    disabled={!isFormValid || isBusy}
                 >
-                    {isLoading ? "Saving..." : "Save Changes"}
+                    {isBusy ? "Saving..." : "Save Changes"}
                 </button>
             </form>
         </Modal>

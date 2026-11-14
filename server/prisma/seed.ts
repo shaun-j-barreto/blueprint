@@ -44,6 +44,29 @@ async function deleteAllData(orderedFileNames: string[]) {
   }
 }
 
+// Seed rows are inserted with explicit ids, which does not advance the
+// PostgreSQL sequences behind the serial columns. Resetting them prevents the
+// next INSERT (e.g. an uploaded attachment) from reusing an existing id.
+const SERIAL_TABLES = [
+  { table: "Team", idColumn: "id" },
+  { table: "Project", idColumn: "id" },
+  { table: "ProjectTeam", idColumn: "id" },
+  { table: "User", idColumn: "userId" },
+  { table: "Task", idColumn: "id" },
+  { table: "Attachment", idColumn: "id" },
+  { table: "Comment", idColumn: "id" },
+  { table: "TaskAssignment", idColumn: "id" },
+] as const;
+
+async function resetSequences() {
+  for (const { table, idColumn } of SERIAL_TABLES) {
+    await prisma.$queryRawUnsafe(
+      `SELECT setval(pg_get_serial_sequence('"${table}"', '${idColumn}'), COALESCE((SELECT MAX("${idColumn}") FROM "${table}"), 0) + 1, false)`,
+    );
+    console.log(`Reset id sequence for ${table}`);
+  }
+}
+
 async function main() {
   // Resolves the path relative to the runtime location
   const dataDirectory = path.join(process.cwd(), "prisma", "seedData");
@@ -84,6 +107,9 @@ async function main() {
       console.error(`Error seeding data for ${modelKey}:`, error);
     }
   }
+
+  console.log("Resetting id sequences...");
+  await resetSequences();
 }
 
 main()
