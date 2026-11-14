@@ -155,20 +155,20 @@ export const api = createApi({
     }),
     getTasks: build.query<Task[], { projectId: number }>({
       query: ({ projectId }) => `tasks?projectId=${projectId}`,
-      providesTags: (result) =>
-        result
-          ? result.map(({ id }) => ({ type: "Tasks" as const, id }))
-          : [{ type: "Tasks" as const }],
+      // The project-level tag must exist even when the list is empty. Without
+      // it, creating the first task in a new project cannot invalidate the
+      // cached empty list, so the board would stay blank until a reload.
+      providesTags: (result, error, { projectId }) => [
+        { type: "Tasks" as const, id: `PROJECT_${projectId}` },
+        ...(result?.map(({ id }) => ({ type: "Tasks" as const, id })) ?? []),
+      ],
     }),
     getAllTasks: build.query<Task[], void>({
       query: () => "tasks",
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ id }) => ({ type: "Tasks" as const, id })),
-              { type: "Tasks" as const },
-            ]
-          : [{ type: "Tasks" as const }],
+      providesTags: (result) => [
+        { type: "Tasks" as const },
+        ...(result?.map(({ id }) => ({ type: "Tasks" as const, id })) ?? []),
+      ],
     }),
     createTask: build.mutation<Task, CreateTaskPayload>({
       query: ({ files, ...task }) => {
@@ -190,7 +190,26 @@ export const api = createApi({
           body,
         };
       },
-      invalidatesTags: ["Tasks"],
+      invalidatesTags: (
+        result,
+        error,
+        { projectId, authorUserId, assignedUserId },
+      ) => {
+        const tags: { type: "Tasks"; id?: string | number }[] = [
+          { type: "Tasks", id: `PROJECT_${projectId}` },
+          { type: "Tasks" },
+        ];
+
+        if (authorUserId) {
+          tags.push({ type: "Tasks", id: `USER_${authorUserId}` });
+        }
+
+        if (assignedUserId) {
+          tags.push({ type: "Tasks", id: `USER_${assignedUserId}` });
+        }
+
+        return tags;
+      },
     }),
     addTaskAttachments: build.mutation<Task, AddTaskAttachmentsPayload>({
       query: ({ taskId, files }) => {
@@ -248,10 +267,12 @@ export const api = createApi({
     }),
     getTasksByUser: build.query<Task[], number>({
       query: (userId) => `tasks/user/${userId}`,
-      providesTags: (result, error, userId) =>
-        result
-          ? result.map(({ id }) => ({ type: "Tasks", id }))
-          : [{ type: "Tasks", id: userId }],
+      // Keep a stable user-level tag for empty task lists as well, so the
+      // sidebar counts refresh after the user creates their first task.
+      providesTags: (result, error, userId) => [
+        { type: "Tasks" as const, id: `USER_${userId}` },
+        ...(result?.map(({ id }) => ({ type: "Tasks" as const, id })) ?? []),
+      ],
     }),
     search: build.query<SearchResults, string>({
       query: (query) => `search?query=${query}`,

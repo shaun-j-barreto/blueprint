@@ -126,8 +126,7 @@ export const taskDataGridSxStyles = (isDarkMode: boolean) => {
     },
     "& .MuiDataGrid-scrollbar": {
       backgroundColor: "var(--color-brand-200)",
-      scrollbarColor:
-        "var(--color-brand-500) var(--color-brand-200)",
+      scrollbarColor: "var(--color-brand-500) var(--color-brand-200)",
       scrollbarWidth: "thin",
     },
     "& .MuiDataGrid-scrollbar::-webkit-scrollbar": {
@@ -222,3 +221,29 @@ export const taskDataGridSxStyles = (isDarkMode: boolean) => {
   };
 };
 
+/**
+ * Pulls the human-readable message out of an RTK Query / fetch error without
+ * relying on `any`, so form handlers can surface server validation errors.
+ */
+export const getApiErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  if (typeof error === "object" && error !== null && "data" in error) {
+    const data = (error as { data?: unknown }).data;
+
+    if (typeof data === "object" && data !== null && "message" in data) {
+      const message = (data as { message?: unknown }).message;
+
+      if (typeof message === "string" && message.trim().length > 0) {
+        return message;
+      }
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return fallback;
+};
