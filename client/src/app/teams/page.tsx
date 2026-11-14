@@ -90,8 +90,8 @@ const TeamsPage = () => {
 
     teamEntries.forEach((entry) => {
       entry.members.forEach((member) => {
-        if (typeof member.userId === "number") {
-          memberIds.add(member.userId);
+        if (typeof member.id === "number") {
+          memberIds.add(member.id);
         }
       });
 
@@ -104,7 +104,7 @@ const TeamsPage = () => {
     });
 
     const unassigned = users.filter(
-      (user) => typeof user.userId === "number" && !memberIds.has(user.userId),
+      (user) => typeof user.id === "number" && !memberIds.has(user.id),
     ).length;
 
     return {

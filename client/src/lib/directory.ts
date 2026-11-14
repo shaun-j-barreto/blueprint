@@ -195,7 +195,7 @@ export const teamForUser = (user: User, teams: Team[]): Team | undefined => {
   }
 
   return teams.find((team) =>
-    team.users?.some((member) => member.userId === user.userId),
+    team.users?.some((member) => member.id === user.id),
   );
 };
 
@@ -204,12 +204,12 @@ export const teamMemberIds = (team: Team, users: User[]): Set<number> => {
   const ids = new Set<number>();
 
   team.users?.forEach((member) => {
-    if (typeof member.userId === "number") ids.add(member.userId);
+    if (typeof member.id === "number") ids.add(member.id);
   });
 
   users.forEach((user) => {
-    if (user.teamId === team.id && typeof user.userId === "number") {
-      ids.add(user.userId);
+    if (user.teamId === team.id && typeof user.id === "number") {
+      ids.add(user.id);
     }
   });
 
@@ -220,7 +220,7 @@ export const teamMembers = (team: Team, users: User[]): User[] => {
   const ids = teamMemberIds(team, users);
 
   return users.filter(
-    (user) => typeof user.userId === "number" && ids.has(user.userId),
+    (user) => typeof user.id === "number" && ids.has(user.id),
   );
 };
 
@@ -233,14 +233,13 @@ export const buildPeopleDirectory = (
 
   return users.map((user) => {
     const stats =
-      (typeof user.userId === "number"
-        ? statsById.get(user.userId)
-        : undefined) ?? emptyPersonStats();
+      (typeof user.id === "number" ? statsById.get(user.id) : undefined) ??
+      emptyPersonStats();
 
     return {
       user,
       team: teamForUser(user, teams),
-      role: roleForUser(user.userId, teams),
+      role: roleForUser(user.id, teams),
       stats,
     };
   });
@@ -300,8 +299,8 @@ export const buildTeamDirectory = (
   );
 
   users.forEach((user) => {
-    if (typeof user.userId === "number") {
-      usersById.set(user.userId, user);
+    if (typeof user.id === "number") {
+      usersById.set(user.id, user);
     }
   });
 

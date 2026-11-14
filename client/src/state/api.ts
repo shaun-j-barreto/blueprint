@@ -30,7 +30,7 @@ export enum Status {
 }
 
 export interface User {
-  userId?: number;
+  id?: number;
   username: string;
   email?: string;
   profilePictureUrl?: string;
@@ -45,7 +45,7 @@ export interface Team {
   productOwnerUsername?: string;
   projectManagerUsername?: string;
   /** Enriched by GET /teams so directory cards can show people and projects. */
-  users?: Pick<User, "userId" | "username" | "profilePictureUrl" | "teamId">[];
+  users?: Pick<User, "id" | "username" | "profilePictureUrl" | "teamId">[];
   projects?: Pick<Project, "id" | "name">[];
 }
 

@@ -129,7 +129,7 @@ const SearchContent = ({ initialQuery }: { initialQuery: string }) => {
                 </h1>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                   {searchResults.users.map((user) => (
-                    <UserCard key={user.userId} user={user} />
+                    <UserCard key={user.id} user={user} />
                   ))}
                 </div>
               </section>

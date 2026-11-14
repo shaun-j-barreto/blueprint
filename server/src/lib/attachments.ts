@@ -87,7 +87,7 @@ export const attachmentCreatePayload = (
   fileName: safeAttachmentName(file.originalname),
   mimeType: mimeTypeForAttachment(file.originalname),
   fileSize: file.size,
-  uploadedBy: { connect: { userId: uploadedById } },
+  uploadedBy: { connect: { id: uploadedById } },
   file: { create: { data: toAttachmentBytes(file.buffer) } },
 });
 

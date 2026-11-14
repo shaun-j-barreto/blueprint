@@ -65,8 +65,7 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     () =>
       [...users]
         .filter(
-          (user): user is User & { userId: number } =>
-            typeof user.userId === "number",
+          (user): user is User & { id: number } => typeof user.id === "number",
         )
         .sort((a, b) => a.username.localeCompare(b.username)),
     [users],
@@ -311,11 +310,11 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
             </option>
             {sortedUsers.map((user) => (
               <option
-                key={user.userId}
-                value={String(user.userId)}
+                key={user.id}
+                value={String(user.id)}
                 className="text-brand-900 bg-brand-200"
               >
-                {user.username} (#{user.userId})
+                {user.username} (#{user.id})
               </option>
             ))}
           </select>
@@ -342,11 +341,11 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
               </option>
               {sortedUsers.map((user) => (
                 <option
-                  key={user.userId}
-                  value={String(user.userId)}
+                  key={user.id}
+                  value={String(user.id)}
                   className="text-brand-900 bg-brand-200"
                 >
-                  {user.username} (#{user.userId})
+                  {user.username} (#{user.id})
                 </option>
               ))}
             </select>

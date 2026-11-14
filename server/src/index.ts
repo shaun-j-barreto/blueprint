@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import bodyParser from "body-parser";
 import multer from "multer";
+import { toNodeHandler } from "better-auth/node";
 import type { NextFunction, Request, Response } from "express";
 
 // route imports
@@ -21,10 +22,16 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_COUNT,
 } from "./lib/attachments.js";
+import { auth } from "./auth.js";
 
 // configurations
 dotenv.config();
 const app = express();
+
+// Better Auth reads the raw request stream, so it must be mounted before any
+// JSON body parser. Everything else stays behind the parsers below.
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 app.use(express.json());
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));

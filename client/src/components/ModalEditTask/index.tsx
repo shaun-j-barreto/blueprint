@@ -114,8 +114,8 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
         () =>
             [...users]
                 .filter(
-                    (user): user is User & { userId: number } =>
-                        typeof user.userId === "number",
+                    (user): user is User & { id: number } =>
+                        typeof user.id === "number",
                 )
                 .sort((a, b) => a.username.localeCompare(b.username)),
         [users],
@@ -126,11 +126,11 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const authorOptions = useMemo(() => {
         if (
             task.authorUserId &&
-            !sortedUsers.some((user) => user.userId === task.authorUserId)
+            !sortedUsers.some((user) => user.id === task.authorUserId)
         ) {
             return [
                 {
-                    userId: task.authorUserId,
+                    id: task.authorUserId,
                     username: task.author?.username ?? `User #${task.authorUserId}`,
                 },
                 ...sortedUsers,
@@ -142,11 +142,11 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const assigneeOptions = useMemo(() => {
         if (
             task.assignedUserId &&
-            !sortedUsers.some((user) => user.userId === task.assignedUserId)
+            !sortedUsers.some((user) => user.id === task.assignedUserId)
         ) {
             return [
                 {
-                    userId: task.assignedUserId,
+                    id: task.assignedUserId,
                     username:
                         task.assignee?.username ?? `User #${task.assignedUserId}`,
                 },
@@ -410,11 +410,11 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                         </option>
                         {authorOptions.map((user) => (
                             <option
-                                key={user.userId}
-                                value={String(user.userId)}
+                                key={user.id}
+                                value={String(user.id)}
                                 className="text-brand-900 bg-brand-200"
                             >
-                                {user.username} (#{user.userId})
+                                {user.username} (#{user.id})
                             </option>
                         ))}
                     </select>
@@ -441,11 +441,11 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                             </option>
                             {assigneeOptions.map((user) => (
                                 <option
-                                    key={user.userId}
-                                    value={String(user.userId)}
+                                    key={user.id}
+                                    value={String(user.id)}
                                     className="text-brand-900 bg-brand-200"
                                 >
-                                    {user.username} (#{user.userId})
+                                    {user.username} (#{user.id})
                                 </option>
                             ))}
                         </select>

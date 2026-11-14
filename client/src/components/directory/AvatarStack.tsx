@@ -28,7 +28,7 @@ export const AvatarStack = ({
       <div className="flex -space-x-1.5">
         {visible.map((user, index) => (
           <span
-            key={user.userId ?? `${user.username}-${index}`}
+            key={user.id ?? `${user.username}-${index}`}
             className="bg-brand-100 ring-brand-100 rounded-full ring-2"
           >
             <UserAvatar user={user} size={size} title={user.username} />

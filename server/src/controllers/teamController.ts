@@ -15,7 +15,7 @@ export const getTeams = async (req: Request, res: Response): Promise<void> => {
       }),
       prisma.user.findMany({
         select: {
-          userId: true,
+          id: true,
           username: true,
           profilePictureUrl: true,
           teamId: true,
@@ -23,7 +23,7 @@ export const getTeams = async (req: Request, res: Response): Promise<void> => {
       }),
     ]);
 
-    const usersById = new Map(users.map((user) => [user.userId, user]));
+    const usersById = new Map(users.map((user) => [user.id, user]));
 
     const teamsWithDetails = teams.map((team) => {
       const projects = Array.from(

@@ -67,6 +67,27 @@ async function resetSequences() {
   }
 }
 
+type SeedUser = {
+  userId: number;
+  username: string;
+  [key: string]: unknown;
+};
+
+/**
+ * seedData/user.json predates authentication. Prisma now exposes the primary
+ * key as `id` and requires an email, so the legacy shape is mapped on the way
+ * in and the JSON stays untouched.
+ */
+function toSeedUser(raw: SeedUser) {
+  const { userId, ...rest } = raw;
+
+  return {
+    ...rest,
+    id: userId,
+    email: `${raw.username.toLowerCase()}@seed.blueprint.local`,
+  };
+}
+
 async function main() {
   // Resolves the path relative to the runtime location
   const dataDirectory = path.join(process.cwd(), "prisma", "seedData");
@@ -100,7 +121,9 @@ async function main() {
 
     try {
       for (const data of jsonData) {
-        await model.create({ data });
+        await model.create({
+          data: modelKey === "user" ? toSeedUser(data) : data,
+        });
       }
       console.log(`Seeded ${modelKey} with ${jsonData.length} records.`);
     } catch (error) {

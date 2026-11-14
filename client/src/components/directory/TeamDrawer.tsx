@@ -244,13 +244,11 @@ export const TeamDrawer = ({
         {sortedMembers.length > 0 ? (
           <div className="mt-2 space-y-1.5">
             {sortedMembers.map((member, index) => {
-              const open = member.userId
-                ? (openByUser.get(member.userId) ?? 0)
-                : 0;
+              const open = member.id ? (openByUser.get(member.id) ?? 0) : 0;
 
               return (
                 <button
-                  key={member.userId ?? `${member.username}-${index}`}
+                  key={member.id ?? `${member.username}-${index}`}
                   type="button"
                   onClick={() => onSelectPerson(member)}
                   className="border-brand-500/60 hover:border-brand-600 hover:bg-brand-200 flex w-full cursor-pointer items-center gap-2.5 rounded-xl border p-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"

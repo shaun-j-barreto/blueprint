@@ -265,7 +265,7 @@ const PeoplePage = () => {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visiblePeople.map((person, index) => (
               <PersonCard
-                key={person.user.userId ?? `${person.user.username}-${index}`}
+                key={person.user.id ?? `${person.user.username}-${index}`}
                 person={person}
                 onSelect={(selected) => setSelectedUser(selected.user)}
               />

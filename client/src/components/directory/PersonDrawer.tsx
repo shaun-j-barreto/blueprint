@@ -151,10 +151,10 @@ export const PersonDrawer = ({
   );
 
   const assignedTasks = useMemo(() => {
-    if (!user || typeof user.userId !== "number") return [];
+    if (!user || typeof user.id !== "number") return [];
 
     return sortTasksForDrawer(
-      tasks.filter((task) => task.assignedUserId === user.userId),
+      tasks.filter((task) => task.assignedUserId === user.id),
     );
   }, [user, tasks]);
 
