@@ -1,18 +1,13 @@
 import {
-    Priority,
-    useDeleteTaskMutation,
     useGetTasksQuery,
     useUpdateTaskStatusMutation,
 } from "@/state/api";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "@/state/api";
-import { EllipsisVertical, MessageSquareMore, Pencil, Plus, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import Image from "next/image";
-import { useState } from "react";
-import ModalEditTask from "@/components/ModalEditTask";
-import AttachmentList from "@/components/AttachmentList";
+import { Plus } from "lucide-react";
+import TaskCard from "@/components/TaskCard";
+import { statusMeta } from "@/lib/taskStyles";
 
 type BoardProps = {
     id: string;
@@ -58,7 +53,7 @@ const BoardView = ({ id, setIsModalNewTaskOpen }: BoardProps) => {
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 items-start gap-4 p-4 md:grid-cols-2 xl:grid-cols-4">
                 {taskStatus.map((status) => (
                     <TaskColumn
                         key={status}
@@ -87,56 +82,54 @@ const TaskColumn = ({
         }),
     }));
 
-    const tasksCount = tasks.filter((task) => task.status === status).length;
-
-    const statusColor: Record<string, string> = {
-        "To Do": "#2563EB",
-        "Work In Progress": "#0EA5E9",
-        "Under Review": "#D97706",
-        "Completed": "#16A34A"
-    };
+    const columnTasks = tasks.filter((task) => task.status === status);
+    const meta = statusMeta[status];
 
     return (
         <div
             ref={(instance) => {
                 drop(instance);
             }}
-            className={`rounded-lg py-2 sm:py-4 xl:px-2 ${isOver ? "bg-brand-200" : ""}`}
+            className={`rounded-2xl border p-2.5 transition-colors duration-150 ${
+                isOver
+                    ? "border-brand-600 bg-brand-300/70 ring-brand-600/15 ring-2"
+                    : "border-brand-500/60 bg-brand-200/60"
+            }`}
         >
-            {/* Parent layout container element with unified styling */}
-            <div className="bg-brand-100 mb-3 flex w-full overflow-hidden rounded-lg border border-brand-500 shadow-sm">
-                {/* 1. Sibling Element: Colored Accent Strip indicator line */}
-                <div
-                    className="w-2 flex-shrink-0"
-                    style={{ backgroundColor: statusColor[status] }}
-                />
-
-                {/* 2. Sibling Element: Main text metrics area */}
-                <div className="flex w-full items-center justify-between px-5 py-4">
-                    <h3 className="text-brand-900 flex items-center gap-2 text-lg font-semibold">
+            <div className="mb-2 flex items-center justify-between gap-2 px-1 pt-0.5">
+                <div className="flex min-w-0 items-center gap-2">
+                    <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${meta?.dot ?? "bg-brand-600"}`}
+                    />
+                    <h3 className="text-brand-900 truncate text-sm font-semibold">
                         {status}
-                        <span className="bg-brand-500 text-brand-900 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold">
-                            {tasksCount}
-                        </span>
                     </h3>
-                    <div className="flex items-center gap-1">
-                        <button className="text-brand-900 flex h-6 w-5 cursor-pointer items-center justify-center">
-                            <EllipsisVertical size={26} />
-                        </button>
-                        <button
-                            className="bg-brand-600 text-brand-900 flex h-6 w-6 cursor-pointer items-center justify-center rounded"
-                            onClick={() => setIsModalNewTaskOpen(true)}
-                        >
-                            <Plus size={16} />
-                        </button>
-                    </div>
+                    <span className="bg-brand-400 text-brand-700 dark:bg-white/5 dark:text-brand-800 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-semibold">
+                        {columnTasks.length}
+                    </span>
                 </div>
+                <button
+                    type="button"
+                    onClick={() => setIsModalNewTaskOpen(true)}
+                    title={`Add task to ${status}`}
+                    aria-label={`Add task to ${status}`}
+                    className="text-brand-700 hover:bg-brand-400 hover:text-brand-900 dark:text-brand-800 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors"
+                >
+                    <Plus size={16} />
+                </button>
             </div>
-            {tasks
-                .filter((task) => task.status === status)
-                .map((task) => (
+
+            <div className="min-h-[72px]">
+                {columnTasks.map((task) => (
                     <Task key={task.id} task={task} />
                 ))}
+
+                {columnTasks.length === 0 && (
+                    <div className="border-brand-500 text-brand-700 dark:text-brand-800 rounded-xl border border-dashed px-3 py-7 text-center text-xs">
+                        Drop tasks here
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -154,139 +147,16 @@ const Task = ({ task }: TaskProps) => {
         }),
     }));
 
-    const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
-    const [isEditOpen, setIsEditOpen] = useState(false);
-
-    const handleDelete = async () => {
-        if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
-
-        try {
-            await deleteTask(task.id).unwrap();
-        } catch {
-            window.alert("Failed to delete the task. Please try again.");
-        }
-    };
-
-    const taskTagsSplit = task.tags ? task.tags.split(",") : [];
-
-    const formattedStartDate = task.startDate
-        ? format(new Date(task.startDate), "P")
-        : "";
-    const formattedDueDate = task.dueDate
-        ? format(new Date(task.dueDate), "P")
-        : "";
-
-    const numberOfComments = (task.comments && task.comments.length) || 0;
-
     return (
         <div
             ref={(instance) => {
                 drag(instance);
             }}
-            className={`bg-brand-200 border-brand-500/80 mb-4 rounded-md border shadow ${isDragging ? "opacity-50" : "opacity-100"}`}
+            className="mb-2.5 last:mb-0"
         >
-            <div className="p-4 md:p-6">
-                <AttachmentList attachments={task.attachments} variant="board" />
-                <div className="flex items-start justify-between">
-                    <div className="flex flex-1 flex-wrap items-center gap-2">
-                        {task.priority && <PriorityTag priority={task.priority} />}
-                        <div className="flex gap-2">
-                            {taskTagsSplit.map((tag) => (
-                                <div
-                                    key={tag}
-                                    className="bg-brand-600 text-brand-900 rounded-full px-2 py-1 text-xs"
-                                >
-                                    {tag}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setIsEditOpen(true)}
-                            title="Edit task"
-                            aria-label={`Edit task ${task.title}`}
-                            className="text-brand-900 flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <Pencil size={18} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            title="Delete task"
-                            aria-label={`Delete task ${task.title}`}
-                            className="text-brand-900 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded transition-colors hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <Trash2 size={18} />
-                        </button>
-                    </div>
-                </div>
-                <div className="my-3 flex justify-between">
-                    <h4 className="text-md font bold text-brand-900">{task.title}</h4>
-                    {typeof task.points === "number" && (
-                        <div className="text-brand-900 text-xs font-semibold">
-                            {task.points} pts
-                        </div>
-                    )}
-                </div>
-                <div className="text-brand-800 text-xs">
-                    {formattedStartDate && <span>{formattedStartDate} - </span>}
-                    {formattedDueDate && <span>{formattedDueDate}</span>}
-                </div>
-                <p className="text-brand-900 text-sm">{task.description}</p>
-                <div className="border-brand-600 mt-4 border-t">
-                    {/* Users */}
-                    <div className="mt-3 flex items-center justify-between">
-                        <div className="flex -space-x-[6px] overflow-hidden">
-                            {task.assignee && (
-                                <Image
-                                    key={task.assignee.userId}
-                                    src={`/${task.assignee.profilePictureUrl!}`}
-                                    alt="Assignee Avatar"
-                                    width={30}
-                                    height={30}
-                                    className="borders-2 border-brand-600 oject-cover h-8 w-8 rounded-full"
-                                />
-                            )}
-                            {task.author && (
-                                <Image
-                                    key={task.author.userId}
-                                    src={`/${task.author.profilePictureUrl!}`}
-                                    alt="author avatar"
-                                    width={30}
-                                    height={30}
-                                    className="borders-2 border-brand-600 oject-cover h-8 w-8 rounded-full"
-                                />
-                            )}
-                        </div>
-                        <div className=" flex items-center text-brand-800">
-                            <MessageSquareMore size={20} />
-                            <span className="ml-1 text-sm text-brand-800">
-                                {numberOfComments}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {isEditOpen && (
-                <ModalEditTask
-                    isOpen={isEditOpen}
-                    task={task}
-                    onClose={() => setIsEditOpen(false)}
-                />
-            )}
+            <TaskCard task={task} variant="board" isDragging={isDragging} />
         </div>
     );
 };
-
-const PriorityTag = ({ priority }: { priority: TaskType["priority"] }) => (
-    <div
-        className={`rounded-full px-2 py-1 text-xs font-semibold ${priority === "Urgent" ? "bg-red-200 text-red-700" : priority === "High" ? "bg-orange-200 text-orange-700" : priority === "Medium" ? "bg-green-200 text-green-700" : priority === "Low" ? "bg-blue-200 text-blue-700" : "bg-gray-200 text-gray-700"}`}
-    >
-        {priority}
-    </div>
-);
 
 export default BoardView;

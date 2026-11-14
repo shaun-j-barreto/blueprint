@@ -1,98 +1,197 @@
 "use client";
 
 import { useAppSelector } from "@/app/redux";
-import Header from "@/components/Header";
+import { TaskChip } from "@/components/TaskChips";
+import TimelineChart, {
+    TIMELINE_SCALES,
+    TimelineRangeControl,
+    type TimelineViewMode,
+} from "@/components/TimelineChart";
+import {
+    formatTaskDateValue,
+    projectPhase,
+    projectPhaseMeta,
+} from "@/lib/taskStyles";
 import { useGetProjectsQuery } from "@/state/api";
+import type { IColumnConfig, ITask } from "@svar-ui/react-gantt";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
-import { Gantt, Willow, WillowDark } from "@svar-ui/react-gantt";
-import "@svar-ui/react-gantt/all.css";
+const PHASE_PROGRESS: Record<string, number> = {
+    Upcoming: 0,
+    Active: 50,
+    Completed: 100,
+};
 
-type ViewMode = "Day" | "Week" | "Month";
+const COLUMNS: IColumnConfig[] = [
+    {
+        id: "text",
+        header: "Project",
+        width: 280,
+        cell: ({ row }) => (
+            <span
+                className="text-brand-900 block truncate text-[12px] font-semibold"
+                title={row.text}
+            >
+                {row.text}
+            </span>
+        ),
+    },
+    {
+        id: "start",
+        header: "Start",
+        width: 108,
+        template: (_value, row) => formatTaskDateValue(row?.start),
+    },
+    {
+        id: "end",
+        header: "Due",
+        width: 108,
+        template: (_value, row) => formatTaskDateValue(row?.end),
+    },
+    {
+        id: "status",
+        header: "Status",
+        width: 140,
+        cell: ({ row }) => {
+            const phase = row.status as keyof typeof projectPhaseMeta;
+
+            return projectPhaseMeta[phase] ? (
+                <TaskChip meta={projectPhaseMeta[phase]} />
+            ) : (
+                <span className="text-brand-700/50 text-xs">—</span>
+            );
+        },
+    },
+];
 
 const Timeline = () => {
     const isDarkMode = useAppSelector((state) => state.global.isDarkMode);
     const { data: projects, isLoading, isError } = useGetProjectsQuery();
 
-    const [viewMode, setViewMode] = useState<ViewMode>("Month");
+    const [viewMode, setViewMode] = useState<TimelineViewMode>("month");
 
-    const ganttTasks = useMemo(() => {
-        return (
-            projects?.map((project) => ({
+    const ganttTasks = useMemo<ITask[]>(() => {
+        if (!projects) return [];
+
+        return projects.map((project) => {
+            const phase = projectPhase(project);
+            const parsedStart = project.startDate
+                ? new Date(project.startDate)
+                : null;
+            const parsedEnd = project.endDate ? new Date(project.endDate) : null;
+
+            const start =
+                parsedStart && !isNaN(parsedStart.getTime())
+                    ? parsedStart
+                    : parsedEnd && !isNaN(parsedEnd.getTime())
+                      ? parsedEnd
+                      : new Date();
+
+            const end =
+                parsedEnd && !isNaN(parsedEnd.getTime()) ? parsedEnd : start;
+
+            const startOfRange = new Date(start);
+            startOfRange.setHours(0, 0, 0, 0);
+
+            const endOfRange = new Date(end);
+            endOfRange.setHours(23, 59, 59, 999);
+
+            if (endOfRange.getTime() < startOfRange.getTime()) {
+                endOfRange.setTime(startOfRange.getTime() + 86_400_000 - 1);
+            }
+
+            return {
                 id: `Project-${project.id}`,
                 text: project.name,
-                start: new Date(project.startDate as string),
-                end: new Date(project.endDate as string),
+                start: startOfRange,
+                end: endOfRange,
+                status: phase,
                 type: "project",
-                progress: 50,
-            })) || []
-        );
+                progress: PHASE_PROGRESS[phase] ?? 0,
+            };
+        });
     }, [projects]);
 
-    // Corrected to use SVAR UI '%' formatting tokens
-    const scales = useMemo(() => {
-        switch (viewMode) {
-            case "Day":
-                return [
-                    { unit: "month", step: 1, format: "%F %Y" }, // e.g. January 2026
-                    { unit: "day", step: 1, format: "%j %M" }    // e.g. 1 Jan
-                ];
-            case "Week":
-                return [
-                    { unit: "month", step: 1, format: "%F %Y" }, // e.g. January 2026
-                    { unit: "week", step: 1, format: "Week %W" } // e.g. Week 4
-                ];
-            case "Month":
-                return [
-                    { unit: "year", step: 1, format: "%Y" },     // e.g. 2026
-                    { unit: "month", step: 1, format: "%F" }     // e.g. January
-                ];
-            default:
-                return [
-                    { unit: "year", step: 1, format: "%Y" },
-                    { unit: "month", step: 1, format: "%F" }
-                ];
-        }
-    }, [viewMode]);
+    if (isLoading)
+        return (
+            <div className="max-w-full p-8">
+                <div className="border-brand-500/80 bg-brand-100 flex h-[560px] flex-col items-center justify-center gap-3 rounded-2xl border">
+                    <Loader2 className="text-brand-700 h-5 w-5 animate-spin" />
+                    <p className="text-brand-700 text-xs font-medium">
+                        Loading projects…
+                    </p>
+                </div>
+            </div>
+        );
 
-    const columns = [
-        { id: "text", header: "Task Name", width: 250 },
-        { id: "start", header: "Start Date", width: 120 },
-        { id: "end", header: "End Date", width: 120 }
-    ];
-
-    if (isLoading) return <div>Loading...</div>;
-    if (isError || !projects) return <div>An error occurred while fetching projects</div>;
-
-    const ThemeWrapper = isDarkMode ? WillowDark : Willow;
+    if (isError || !projects)
+        return (
+            <div className="max-w-full p-8">
+                <div className="border-brand-500/80 bg-brand-100 flex h-[560px] flex-col items-center justify-center gap-3 rounded-2xl border px-6 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+                        <AlertTriangle className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <p className="text-brand-900 text-sm font-semibold">
+                            Could not load projects
+                        </p>
+                        <p className="text-brand-700 mt-1 text-xs">
+                            An error occurred while fetching the project list.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
 
     return (
-        <div className="max-w-full p-8">
-            <header className="mb-4 flex items-center justify-between">
-                <Header name="Projects Timeline" />
-                <div className="relative inline-block w-64">
-                    <select
-                        className="block w-full rounded border border-brand-600 bg-transparent px-4 py-2 text-sm outline-none transition-colors focus:border-brand-600 text-brand-900"
-                        value={viewMode}
-                        onChange={(e) => setViewMode(e.target.value as ViewMode)}
-                    >
-                        <option value="Day" className="bg-brand-200">Day</option>
-                        <option value="Week" className="bg-brand-200">Week</option>
-                        <option value="Month" className="bg-brand-200">Month</option>
-                    </select>
+        <div className="max-w-full px-4 pb-8 pt-5 xl:px-6">
+            <div className="flex flex-wrap items-end justify-between gap-3 pb-4">
+                <div className="min-w-0">
+                    <div className="flex items-baseline gap-2">
+                        <h1 className="text-brand-900 text-lg font-semibold">
+                            Projects Timeline
+                        </h1>
+                        <span className="border-brand-500/70 bg-brand-200 text-brand-700 rounded-full border px-2 py-0.5 text-[11px] font-semibold">
+                            {projects.length}{" "}
+                            {projects.length === 1 ? "project" : "projects"}
+                        </span>
+                    </div>
+                    <p className="text-brand-700 mt-1 text-xs">
+                        Delivery windows for every project in one schedule.
+                    </p>
                 </div>
-            </header>
 
-            <div className="overflow-hidden rounded-md border border-brand-600 bg-brand-200 ">
-                <div className="timeline h-[600px] w-full">
-                    <ThemeWrapper>
-                        <Gantt
-                            tasks={ganttTasks}
-                            links={[]}
-                            scales={scales}
-                            columns={columns}
-                        />
-                    </ThemeWrapper>
+                <TimelineRangeControl
+                    value={viewMode}
+                    onChange={setViewMode}
+                    label="Projects timeline range"
+                />
+            </div>
+
+            <div className="border-brand-500/80 bg-brand-100 overflow-hidden rounded-2xl border shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <TimelineChart
+                    tasks={ganttTasks}
+                    columns={COLUMNS}
+                    scales={TIMELINE_SCALES[viewMode]}
+                    isDarkMode={isDarkMode}
+                    height={560}
+                    emptyMessage="No projects to display."
+                    emptyHint="Projects appear here once their schedules are set."
+                />
+
+                <div className="border-brand-500/70 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t px-4 py-3">
+                    {Object.entries(projectPhaseMeta).map(([phase, meta]) => (
+                        <span
+                            key={phase}
+                            className="text-brand-700 inline-flex items-center gap-1.5 text-[11px] font-medium"
+                        >
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${meta.dot}`}
+                            />
+                            {meta.label}
+                        </span>
+                    ))}
                 </div>
             </div>
         </div>

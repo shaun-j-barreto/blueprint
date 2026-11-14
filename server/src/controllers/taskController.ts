@@ -6,11 +6,28 @@ import {
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   const { projectId } = req.query;
+
+  // The collection endpoint doubles as the dashboard source: callers can
+  // scope it to one project or omit the filter to receive every task.
+  if (projectId !== undefined && typeof projectId !== "string") {
+    res.status(400).json({ message: "Invalid projectId" });
+    return;
+  }
+
+  const hasProjectFilter = projectId !== undefined && projectId !== "";
+  let parsedProjectId: number | null = null;
+
+  if (hasProjectFilter) {
+    parsedProjectId = Number(projectId);
+    if (!Number.isInteger(parsedProjectId) || parsedProjectId <= 0) {
+      res.status(400).json({ message: "Invalid projectId" });
+      return;
+    }
+  }
+
   try {
     const tasks = await prisma.task.findMany({
-      where: {
-        projectId: Number(projectId),
-      },
+      where: parsedProjectId !== null ? { projectId: parsedProjectId } : {},
       include: {
         author: true,
         assignee: true,

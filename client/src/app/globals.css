@@ -49,20 +49,125 @@ body,
   }
 }
 
-html body .wx-willow-dark-theme {
-  /* Main Background */
-  --wx-background: #000000 !important;
+/*
+ * Scoped SVAR Gantt theme.
+ *
+ * The chart inherits the app's brand tokens, and the global overrides that
+ * previously forced pure black on every Gantt are intentionally gone.
+ */
+.task-timeline .wx-theme {
+  height: 100%;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+}
 
-  /* Borders */
-  --wx-gantt-border: 1px solid #1f2937 !important;
-  --wx-timescale-border: 1px solid #1f2937 !important;
+.task-timeline .wx-theme.wx-willow-theme,
+.task-timeline .wx-theme.wx-willow-dark-theme {
+  --wx-background: var(--color-brand-100);
+  --wx-background-alt: var(--color-brand-200);
+  --wx-background-hover: var(--color-brand-300);
+  --wx-color-font: var(--color-brand-900);
+  --wx-color-font-alt: var(--color-brand-700);
+  --wx-color-font-disabled: var(--color-brand-700);
+  --wx-color-secondary-font: var(--wx-color-primary);
+  --wx-color-secondary-font-hover: var(--wx-color-primary);
+  --wx-color-secondary-border: var(--wx-color-primary);
+  --wx-gantt-border-color: var(--color-brand-500);
+  --wx-gantt-border: 1px solid var(--color-brand-500);
+  --wx-timescale-border: 1px solid var(--color-brand-500);
+  --wx-timescale-font-color: var(--color-brand-700);
+  --wx-grid-header-font-color: var(--color-brand-700);
+  --wx-grid-body-font-color: var(--color-brand-900);
+  --wx-grid-header-text-transform: none;
+  --wx-gantt-select-color: var(--color-brand-300);
+  --wx-gantt-icon-color: var(--color-brand-700);
+  --wx-icon-color: var(--color-brand-700);
+  --wx-gantt-holiday-background: var(--color-brand-400);
+  --wx-gantt-holiday-color: var(--color-brand-700);
+  --wx-gantt-link-marker-background: var(--color-brand-100);
+  --wx-gantt-link-marker-color: var(--color-brand-700);
+  --wx-tooltip-background: var(--color-brand-100);
+  --wx-tooltip-font-color: var(--color-brand-900);
+  --wx-tooltip-border: 1px solid var(--color-brand-500);
+}
 
-  /* Interactive Elements */
-  --wx-gantt-select-color: #111827 !important;
-  --wx-tooltip-background: #0a0a0a !important;
+.task-timeline .wx-theme.wx-willow-theme {
+  --wx-color-primary: #0284c7;
+  --wx-color-primary-selected: #e0f2fe;
+  --wx-color-primary-font: #ffffff;
+  --wx-gantt-task-color: #0284c7;
+  --wx-gantt-task-fill-color: #0369a1;
+  --wx-gantt-task-border-color: #075985;
+  --wx-gantt-task-font-color: #ffffff;
+  --wx-gantt-summary-color: #0d9488;
+  --wx-gantt-summary-fill-color: #0f766e;
+  --wx-gantt-summary-border-color: #115e59;
+  --wx-gantt-summary-font-color: #ffffff;
+  --wx-gantt-milestone-color: #7c3aed;
+  --wx-gantt-link-color: var(--color-brand-600);
+  --wx-gantt-link-color-hovered: var(--color-brand-700);
+}
 
-  /* Text */
-  --wx-color-font: #f3f4f6 !important;
-  --wx-grid-header-font-color: #9ca3af !important;
-  --wx-timescale-font-color: #9ca3af !important;
+.task-timeline .wx-theme.wx-willow-dark-theme {
+  --wx-color-primary: #38bdf8;
+  --wx-color-primary-selected: rgba(56, 189, 248, 0.16);
+  --wx-color-primary-font: #04121f;
+  --wx-gantt-task-color: #0ea5e9;
+  --wx-gantt-task-fill-color: #0369a1;
+  --wx-gantt-task-border-color: #0284c7;
+  --wx-gantt-task-font-color: #f8fafc;
+  --wx-gantt-summary-color: #14b8a6;
+  --wx-gantt-summary-fill-color: #0f766e;
+  --wx-gantt-summary-border-color: #0d9488;
+  --wx-gantt-summary-font-color: #f8fafc;
+  --wx-gantt-milestone-color: #a78bfa;
+  --wx-gantt-link-color: var(--color-brand-600);
+  --wx-gantt-link-color-hovered: var(--color-brand-500);
+  --wx-tooltip-background: var(--color-brand-200);
+}
+
+/* Native scrollbars inside the chart must follow the brand palette too. */
+.task-timeline .wx-gantt,
+.task-timeline .wx-area,
+.task-timeline .wx-chart {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-600) var(--color-brand-200);
+}
+
+.task-timeline .wx-gantt::-webkit-scrollbar,
+.task-timeline .wx-area::-webkit-scrollbar,
+.task-timeline .wx-chart::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.task-timeline .wx-gantt::-webkit-scrollbar-track,
+.task-timeline .wx-area::-webkit-scrollbar-track,
+.task-timeline .wx-chart::-webkit-scrollbar-track {
+  background: var(--color-brand-200);
+}
+
+.task-timeline .wx-gantt::-webkit-scrollbar-thumb,
+.task-timeline .wx-area::-webkit-scrollbar-thumb,
+.task-timeline .wx-chart::-webkit-scrollbar-thumb {
+  background: var(--color-brand-500);
+  border-radius: 9999px;
+}
+
+/*
+ * Table row actions stay reachable on touch/keyboard devices and only hide
+ * behind a hover/focus reveal when a real pointer is available.
+ */
+@media (min-width: 640px) and (hover: hover) {
+  .task-data-grid .MuiDataGrid-row .task-row-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease;
+  }
+
+  .task-data-grid .MuiDataGrid-row:hover .task-row-actions,
+  .task-data-grid .MuiDataGrid-row:focus-within .task-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }

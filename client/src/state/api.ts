@@ -160,6 +160,16 @@ export const api = createApi({
           ? result.map(({ id }) => ({ type: "Tasks" as const, id }))
           : [{ type: "Tasks" as const }],
     }),
+    getAllTasks: build.query<Task[], void>({
+      query: () => "tasks",
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: "Tasks" as const, id })),
+              { type: "Tasks" as const },
+            ]
+          : [{ type: "Tasks" as const }],
+    }),
     createTask: build.mutation<Task, CreateTaskPayload>({
       query: ({ files, ...task }) => {
         // Multipart so files and the task are created in one request.
@@ -266,6 +276,7 @@ export const {
   useCreateProjectMutation,
   useDeleteProjectMutation,
   useGetTasksQuery,
+  useGetAllTasksQuery,
   useCreateTaskMutation,
   useAddTaskAttachmentsMutation,
   useDeleteAttachmentMutation,
