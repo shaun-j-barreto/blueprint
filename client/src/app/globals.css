@@ -124,6 +124,27 @@ body,
   --wx-tooltip-background: var(--color-brand-200);
 }
 
+/* Directory drawers use short, reduced-motion-aware entrance animations. */
+@keyframes directory-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes directory-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Sidebar navigation uses a thin, theme-aware scrollbar. */
 .sidebar-scroll {
   scrollbar-width: thin;

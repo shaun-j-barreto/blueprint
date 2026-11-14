@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { User as UserIcon } from 'lucide-react';
-import type { Task } from '@/state/api';
 import {
     priorityMeta,
     splitTags,
@@ -10,13 +9,15 @@ import {
     type TaskAccent,
 } from '@/lib/taskStyles';
 
-export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg';
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
 const AVATAR_SIZES: Record<AvatarSize, { box: string; px: number }> = {
     xs: { box: 'h-[18px] w-[18px] text-[8px]', px: 20 },
     sm: { box: 'h-6 w-6 text-[9px]', px: 24 },
     md: { box: 'h-7 w-7 text-[10px]', px: 28 },
     lg: { box: 'h-8 w-8 text-[11px]', px: 32 },
+    xl: { box: 'h-14 w-14 text-sm', px: 56 },
+    '2xl': { box: 'h-16 w-16 text-base', px: 64 },
 };
 
 const initials = (name: string): string =>
@@ -28,13 +29,24 @@ const initials = (name: string): string =>
         .join('')
         .toUpperCase() || '?';
 
-type UserAvatarProps = {
-    user?: Task['author'];
-    size?: AvatarSize;
-    title?: string;
+type AvatarUser = {
+    username?: string | null;
+    profilePictureUrl?: string | null;
 };
 
-export const UserAvatar = ({ user, size = 'sm', title }: UserAvatarProps) => {
+type UserAvatarProps = {
+    user?: AvatarUser;
+    size?: AvatarSize;
+    title?: string;
+    className?: string;
+};
+
+export const UserAvatar = ({
+    user,
+    size = 'sm',
+    title,
+    className = '',
+}: UserAvatarProps) => {
     const name = user?.username?.trim();
     const src = user?.profilePictureUrl;
     const { box, px } = AVATAR_SIZES[size];
@@ -44,7 +56,7 @@ export const UserAvatar = ({ user, size = 'sm', title }: UserAvatarProps) => {
             title={title ?? name}
             className={`bg-brand-400 text-brand-800 relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border font-semibold uppercase ${box} ${
                 name ? 'border-brand-500' : 'border-brand-600 border-dashed'
-            }`}
+            } ${className}`}
         >
             {src ? (
                 <Image
