@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { search } from "../controllers/searchController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/", search);
+router.get("/", requireAuth, search);
 
 export default router;

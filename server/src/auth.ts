@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma.js";
+import { sendEmail } from "./lib/email.js";
+import { resetPasswordEmail } from "./emails/resetPasswordEmail.js";
 
 const secret = process.env.BETTER_AUTH_SECRET;
 const baseURL = process.env.BETTER_AUTH_URL;
@@ -30,6 +32,25 @@ export const createAuth = (database: AuthDatabase) =>
       enabled: true,
       minPasswordLength: 10,
       requireEmailVerification: false,
+      sendResetPassword: async ({ user, url }) => {
+        const message = resetPasswordEmail({
+          name: user.name || user.email,
+          url,
+        });
+
+        await sendEmail({
+          to: user.email,
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+      },
+      // The plan invalidates every session after a password reset.
+      onPasswordReset: async ({ user }) => {
+        await prisma.session.deleteMany({
+          where: { userId: Number(user.id) },
+        });
+      },
     },
     socialProviders:
       googleClientId && googleClientSecret
@@ -52,6 +73,10 @@ export const createAuth = (database: AuthDatabase) =>
     advanced: {
       // Keep the existing Int primary keys instead of Better Auth's string ids.
       database: { generateId: "serial" },
+      // The API is reached through the Next.js rewrite, which sets
+      // x-forwarded-for. Without a resolvable client IP every caller shares a
+      // single rate-limit bucket.
+      ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     },
     user: {
       // The database already stores these columns; map instead of renaming so the

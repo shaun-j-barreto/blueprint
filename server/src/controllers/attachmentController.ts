@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma.js";
+import { isWorkspaceAdmin, publicUserSelect } from "../lib/access.js";
+import { currentProject, currentUser } from "../middleware/auth.js";
 import {
   AttachmentError,
   attachmentCreatePayload,
@@ -9,8 +11,8 @@ import {
 } from "../lib/attachments.js";
 
 const taskInclude = {
-  author: true,
-  assignee: true,
+  author: { select: publicUserSelect },
+  assignee: { select: publicUserSelect },
   comments: true,
   attachments: true,
 } as const;
@@ -68,6 +70,7 @@ export const addTaskAttachments = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const user = currentUser(res);
   const taskId = Number(req.params.taskId);
 
   if (!Number.isInteger(taskId) || taskId <= 0) {
@@ -87,7 +90,7 @@ export const addTaskAttachments = async (
       async (tx) => {
         const task = await tx.task.findUnique({
           where: { id: taskId },
-          select: { id: true, authorUserId: true },
+          select: { id: true },
         });
 
         if (!task) {
@@ -108,8 +111,8 @@ export const addTaskAttachments = async (
           await tx.attachment.create({
             data: {
               task: { connect: { id: taskId } },
-              // There is no auth, so the task author is the uploader.
-              ...attachmentCreatePayload(file, task.authorUserId),
+              // The signed-in user is the uploader, never the task author.
+              ...attachmentCreatePayload(file, user.id),
             },
           });
         }
@@ -136,7 +139,7 @@ export const addTaskAttachments = async (
       return;
     }
     if (error.code === "P2003") {
-      res.status(400).json({ message: "Author does not exist" });
+      res.status(400).json({ message: "Task or user does not exist" });
       return;
     }
     res
@@ -149,6 +152,8 @@ export const deleteAttachment = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const user = currentUser(res);
+  const { role } = currentProject(res);
   const attachmentId = Number(req.params.attachmentId);
 
   if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
@@ -159,11 +164,24 @@ export const deleteAttachment = async (
   try {
     const attachment = await prisma.attachment.findUnique({
       where: { id: attachmentId },
-      select: { id: true, taskId: true },
+      select: { id: true, taskId: true, uploadedById: true },
     });
 
     if (!attachment) {
       res.status(404).json({ message: "Attachment not found" });
+      return;
+    }
+
+    const canDelete =
+      isWorkspaceAdmin(user) ||
+      role === "MANAGER" ||
+      attachment.uploadedById === user.id;
+
+    if (!canDelete) {
+      res.status(403).json({
+        message:
+          "Only the uploader or a project manager can delete this attachment",
+      });
       return;
     }
 

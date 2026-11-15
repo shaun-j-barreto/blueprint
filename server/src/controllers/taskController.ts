@@ -1,45 +1,82 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma.js";
 import {
-  attachmentCreatePayload,
-} from "../lib/attachments.js";
+  accessibleProjectIds,
+  isActiveProjectMember,
+  isWorkspaceAdmin,
+  projectRoleFor,
+  publicUserSelect,
+} from "../lib/access.js";
+import { attachmentCreatePayload } from "../lib/attachments.js";
+import { currentProject, currentUser } from "../middleware/auth.js";
+import {
+  projectIdQuerySchema,
+  type TaskCreateInput,
+  type TaskStatusInput,
+  type TaskUpdateInput,
+} from "../validation/schemas.js";
+
+const taskInclude = {
+  author: { select: publicUserSelect },
+  assignee: { select: publicUserSelect },
+  comments: true,
+  attachments: true,
+} as const;
+
+const optionalText = (value: string | null | undefined): string | null =>
+  typeof value === "string" && value.trim() !== "" ? value : null;
+
+const optionalId = (
+  value: number | "" | null | undefined,
+): number | null => (typeof value === "number" ? value : null);
+
+const optionalPoints = (
+  value: number | "" | null | undefined,
+): number | null => (typeof value === "number" ? value : null);
+
+const toDate = (value: string | null | undefined): Date | null => {
+  if (value === undefined || value === null || value === "") return null;
+  return new Date(value);
+};
+
+const taskIdFrom = (req: Request): number | null => {
+  const id = Number(req.params.taskId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
-  const { projectId } = req.query;
+  const user = currentUser(res);
+  const parsedQuery = projectIdQuerySchema.safeParse(req.query);
 
-  // The collection endpoint doubles as the dashboard source: callers can
-  // scope it to one project or omit the filter to receive every task.
-  if (projectId !== undefined && typeof projectId !== "string") {
+  if (!parsedQuery.success) {
     res.status(400).json({ message: "Invalid projectId" });
     return;
   }
 
-  const hasProjectFilter = projectId !== undefined && projectId !== "";
-  let parsedProjectId: number | null = null;
-
-  if (hasProjectFilter) {
-    parsedProjectId = Number(projectId);
-    if (!Number.isInteger(parsedProjectId) || parsedProjectId <= 0) {
-      res.status(400).json({ message: "Invalid projectId" });
-      return;
-    }
-  }
+  const filter = parsedQuery.data.projectId;
 
   try {
-    const tasks = await prisma.task.findMany({
-      where: parsedProjectId !== null ? { projectId: parsedProjectId } : {},
-      include: {
-        author: true,
-        assignee: true,
-        comments: true,
-        attachments: true,
-      },
-    });
+    const accessibleIds = await accessibleProjectIds(user);
+
+    let where;
+    if (filter !== undefined && filter !== "") {
+      if (accessibleIds !== null && !accessibleIds.includes(filter)) {
+        // Same response as a missing project: do not leak project ids.
+        res.status(404).json({ message: "Project not found" });
+        return;
+      }
+      where = { projectId: filter };
+    } else {
+      // The collection endpoint doubles as the dashboard source. Without an
+      // explicit project it must still be limited to what the caller can read.
+      where =
+        accessibleIds === null ? {} : { projectId: { in: accessibleIds } };
+    }
+
+    const tasks = await prisma.task.findMany({ where, include: taskInclude });
     res.json(tasks);
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: `Error retriving tasks: ${error.message}` });
+    res.status(500).json({ message: `Error retrieving tasks: ${error.message}` });
   }
 };
 
@@ -47,71 +84,49 @@ export const createTask = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  // multipart/form-data fields arrive as strings; plain JSON callers keep
-  // their original types. Everything is normalised below.
-  const body = req.body ?? {};
+  const user = currentUser(res);
+  const body = req.body as TaskCreateInput;
   const files = Array.isArray(req.files) ? req.files : [];
 
-  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const title = body.title.trim();
   if (title === "") {
     res.status(400).json({ message: "Title is required" });
     return;
   }
 
-  const projectId = Number(body.projectId);
-  if (!Number.isInteger(projectId) || projectId <= 0) {
-    res.status(400).json({ message: "Invalid projectId" });
-    return;
-  }
-
-  const authorUserId = Number(body.authorUserId);
-  if (!Number.isInteger(authorUserId) || authorUserId <= 0) {
-    res.status(400).json({ message: "Invalid authorUserId" });
-    return;
-  }
-
-  let assignedUserId: number | null = null;
-  if (
-    body.assignedUserId !== undefined &&
-    body.assignedUserId !== null &&
-    body.assignedUserId !== ""
-  ) {
-    assignedUserId = Number(body.assignedUserId);
-    if (!Number.isInteger(assignedUserId) || assignedUserId <= 0) {
-      res.status(400).json({ message: "Invalid assignedUserId" });
-      return;
-    }
-  }
-
-  let points: number | null = null;
-  if (body.points !== undefined && body.points !== null && body.points !== "") {
-    points = Number(body.points);
-    if (!Number.isInteger(points) || points < 0) {
-      res.status(400).json({ message: "Invalid points" });
-      return;
-    }
-  }
-
-  const dates: { startDate: Date | null; dueDate: Date | null } = {
-    startDate: null,
-    dueDate: null,
-  };
-  for (const field of ["startDate", "dueDate"] as const) {
-    const value = body[field];
-    if (value === undefined || value === null || value === "") continue;
-
-    const date = new Date(value);
-    if (isNaN(date.getTime())) {
-      res.status(400).json({ message: `Invalid ${field}` });
-      return;
-    }
-    dates[field] = date;
-  }
-
-  const optionalText = (value: unknown): string | null =>
-    typeof value === "string" && value.trim() !== "" ? value : null;
+  const assignedUserId = optionalId(body.assignedUserId);
 
   try {
+    // The project id travels in the body, so project membership has to be
+    // checked here rather than in the route guard.
+    const accessibleIds = await accessibleProjectIds(user);
+
+    if (accessibleIds !== null && !accessibleIds.includes(body.projectId)) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
+
+    if (!isWorkspaceAdmin(user)) {
+      const role = await projectRoleFor(user.id, body.projectId);
+
+      if (role !== "MANAGER" && role !== "CONTRIBUTOR") {
+        res.status(403).json({
+          message: "You don't have permission to add tasks to this project",
+        });
+        return;
+      }
+    }
+
+    if (
+      assignedUserId !== null &&
+      !(await isActiveProjectMember(body.projectId, assignedUserId))
+    ) {
+      res.status(422).json({
+        message: "Assignee must be an active member of this project",
+      });
+      return;
+    }
+
     const newTask = await prisma.task.create({
       data: {
         title,
@@ -119,11 +134,12 @@ export const createTask = async (
         status: optionalText(body.status),
         priority: optionalText(body.priority),
         tags: optionalText(body.tags),
-        startDate: dates.startDate,
-        dueDate: dates.dueDate,
-        points,
-        projectId,
-        authorUserId,
+        startDate: toDate(body.startDate),
+        dueDate: toDate(body.dueDate),
+        points: optionalPoints(body.points),
+        projectId: body.projectId,
+        // The author is always the signed-in user; client input is ignored.
+        authorUserId: user.id,
         assignedUserId,
         // Nested create keeps the task and its attachment blobs in one
         // transaction: a rejected file means no task is created.
@@ -131,25 +147,19 @@ export const createTask = async (
           ? {
               attachments: {
                 create: files.map((file) =>
-                  attachmentCreatePayload(file, authorUserId),
+                  attachmentCreatePayload(file, user.id),
                 ),
               },
             }
           : {}),
       },
-      include: {
-        author: true,
-        assignee: true,
-        comments: true,
-        attachments: true,
-      },
+      include: taskInclude,
     });
+
     res.status(201).json(newTask);
   } catch (error: any) {
     if (error.code === "P2003") {
-      res.status(400).json({
-        message: "Project, author, or assignee does not exist",
-      });
+      res.status(400).json({ message: "Project or assignee does not exist" });
       return;
     }
     res.status(500).json({ message: `Error creating task: ${error.message}` });
@@ -160,110 +170,109 @@ export const updateTask = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { taskId } = req.params;
-  const id = Number(taskId);
+  const user = currentUser(res);
+  const taskId = taskIdFrom(req);
 
-  if (!Number.isInteger(id) || id <= 0) {
+  if (taskId === null) {
     res.status(400).json({ message: "Invalid task id" });
     return;
   }
 
-  const body = req.body ?? {};
-  const data: Record<string, any> = {};
-
-  if (body.title !== undefined) {
-    if (typeof body.title !== "string" || body.title.trim() === "") {
-      res.status(400).json({ message: "Title cannot be empty" });
-      return;
-    }
-    data.title = body.title.trim();
-  }
-
-  if (body.description !== undefined) {
-    if (body.description !== null && typeof body.description !== "string") {
-      res.status(400).json({ message: "Invalid description" });
-      return;
-    }
-    data.description =
-      typeof body.description === "string" && body.description.trim() === ""
-        ? null
-        : body.description;
-  }
-
-  for (const field of ["status", "priority", "tags"] as const) {
-    if (body[field] === undefined) continue;
-    if (body[field] !== null && typeof body[field] !== "string") {
-      res.status(400).json({ message: `Invalid ${field}` });
-      return;
-    }
-    data[field] = body[field] === "" ? null : body[field];
-  }
-
-  for (const field of ["startDate", "dueDate"] as const) {
-    if (body[field] === undefined) continue;
-    if (body[field] === null || body[field] === "") {
-      data[field] = null;
-      continue;
-    }
-    const date = new Date(body[field]);
-    if (isNaN(date.getTime())) {
-      res.status(400).json({ message: `Invalid ${field}` });
-      return;
-    }
-    data[field] = date;
-  }
-
-  if (body.points !== undefined) {
-    if (body.points === null || body.points === "") {
-      data.points = null;
-    } else {
-      const points = Number(body.points);
-      if (!Number.isInteger(points) || points < 0) {
-        res.status(400).json({ message: "Invalid points" });
-        return;
-      }
-      data.points = points;
-    }
-  }
-
-  if (body.authorUserId !== undefined) {
-    const authorUserId = Number(body.authorUserId);
-    if (!Number.isInteger(authorUserId) || authorUserId <= 0) {
-      res.status(400).json({ message: "Invalid authorUserId" });
-      return;
-    }
-    data.authorUserId = authorUserId;
-  }
-
-  if (body.assignedUserId !== undefined) {
-    if (body.assignedUserId === null || body.assignedUserId === "") {
-      data.assignedUserId = null;
-    } else {
-      const assignedUserId = Number(body.assignedUserId);
-      if (!Number.isInteger(assignedUserId) || assignedUserId <= 0) {
-        res.status(400).json({ message: "Invalid assignedUserId" });
-        return;
-      }
-      data.assignedUserId = assignedUserId;
-    }
-  }
-
-  if (Object.keys(data).length === 0) {
-    res.status(400).json({ message: "No valid fields provided to update" });
-    return;
-  }
+  const body = req.body as TaskUpdateInput;
 
   try {
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data,
-      include: {
-        author: true,
-        assignee: true,
-        comments: true,
-        attachments: true,
-      },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, authorUserId: true, projectId: true },
     });
+
+    if (!task) {
+      res.status(404).json({ message: "Task not found" });
+      return;
+    }
+
+    const data: {
+      title?: string;
+      description?: string | null;
+      status?: string | null;
+      priority?: string | null;
+      tags?: string | null;
+      startDate?: Date | null;
+      dueDate?: Date | null;
+      points?: number | null;
+      authorUserId?: number;
+      assignedUserId?: number | null;
+    } = {};
+
+    if (body.title !== undefined) {
+      const title = body.title.trim();
+      if (title === "") {
+        res.status(400).json({ message: "Title cannot be empty" });
+        return;
+      }
+      data.title = title;
+    }
+
+    if (body.description !== undefined) {
+      data.description = optionalText(body.description);
+    }
+    for (const field of ["status", "priority", "tags"] as const) {
+      if (body[field] !== undefined) {
+        data[field] = optionalText(body[field]);
+      }
+    }
+
+    for (const field of ["startDate", "dueDate"] as const) {
+      if (body[field] !== undefined) {
+        data[field] = toDate(body[field]);
+      }
+    }
+
+    if (body.points !== undefined) {
+      data.points = optionalPoints(body.points);
+    }
+
+    if (body.authorUserId !== undefined) {
+      const nextAuthor = optionalId(body.authorUserId);
+
+      if (nextAuthor !== null && nextAuthor !== task.authorUserId) {
+        if (!isWorkspaceAdmin(user)) {
+          res.status(403).json({
+            message: "Only workspace owners and admins can change the author",
+          });
+          return;
+        }
+        data.authorUserId = nextAuthor;
+      }
+    }
+
+    if (body.assignedUserId !== undefined) {
+      const nextAssignee = optionalId(body.assignedUserId);
+
+      if (nextAssignee === null) {
+        data.assignedUserId = null;
+      } else {
+        if (!(await isActiveProjectMember(task.projectId, nextAssignee))) {
+          res.status(422).json({
+            message: "Assignee must be an active member of this project",
+          });
+          return;
+        }
+        data.assignedUserId = nextAssignee;
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ message: "No valid fields provided to update" });
+      return;
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data,
+      include: taskInclude,
+    });
+
     res.json(updatedTask);
   } catch (error: any) {
     if (error.code === "P2025") {
@@ -271,9 +280,7 @@ export const updateTask = async (
       return;
     }
     if (error.code === "P2003") {
-      res
-        .status(400)
-        .json({ message: "Author or assignee does not exist" });
+      res.status(400).json({ message: "Author or assignee does not exist" });
       return;
     }
     res.status(500).json({ message: `Error updating task: ${error.message}` });
@@ -284,21 +291,27 @@ export const updateTasksStatus = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { taskId } = req.params;
-  const { status } = req.body;
+  const taskId = taskIdFrom(req);
+
+  if (taskId === null) {
+    res.status(400).json({ message: "Invalid task id" });
+    return;
+  }
+
+  const body = req.body as TaskStatusInput;
 
   try {
     const updatedTask = await prisma.task.update({
-      where: {
-        id: Number(taskId),
-      },
-      data: {
-        status: status,
-      },
+      where: { id: taskId },
+      data: { status: body.status },
     });
     res.json(updatedTask);
   } catch (error: any) {
-    res.status(500).json({ message: `Error updating tasks: ${error.message}` });
+    if (error.code === "P2025") {
+      res.status(404).json({ message: "Task not found" });
+      return;
+    }
+    res.status(500).json({ message: `Error updating task: ${error.message}` });
   }
 };
 
@@ -306,15 +319,38 @@ export const deleteTask = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { taskId } = req.params;
-  const id = Number(taskId);
+  const user = currentUser(res);
+  const { role } = currentProject(res);
+  const id = taskIdFrom(req);
 
-  if (!Number.isInteger(id) || id <= 0) {
+  if (id === null) {
     res.status(400).json({ message: "Invalid task id" });
     return;
   }
 
   try {
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: { id: true, authorUserId: true },
+    });
+
+    if (!task) {
+      res.status(404).json({ message: "Task not found" });
+      return;
+    }
+
+    const canDelete =
+      isWorkspaceAdmin(user) ||
+      role === "MANAGER" ||
+      task.authorUserId === user.id;
+
+    if (!canDelete) {
+      res.status(403).json({
+        message: "Only the task author or a project manager can delete this task",
+      });
+      return;
+    }
+
     // Comments, attachments and task assignments reference Task with
     // ON DELETE RESTRICT, so they must be removed first. The array form of
     // $transaction runs these in order and rolls back if any step fails.
@@ -339,21 +375,45 @@ export const getUserTasks = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { userId } = req.params;
+  const user = currentUser(res);
+  const targetUserId = Number(req.params.userId);
+
+  if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+    res.status(400).json({ message: "Invalid user id" });
+    return;
+  }
+
+  if (targetUserId !== user.id && !isWorkspaceAdmin(user)) {
+    res.status(403).json({ message: "You can only view your own tasks" });
+    return;
+  }
+
   try {
+    const accessibleIds = await accessibleProjectIds(user);
+
     const tasks = await prisma.task.findMany({
-      where: {
-        OR: [
-          { authorUserId: Number(userId) },
-          { assignedUserId: Number(userId) },
-        ],
-      },
-      include: {
-        author: true,
-        assignee: true,
-        attachments: true,
-      },
+      where:
+        accessibleIds === null
+          ? {
+              OR: [
+                { authorUserId: targetUserId },
+                { assignedUserId: targetUserId },
+              ],
+            }
+          : {
+              AND: [
+                {
+                  OR: [
+                    { authorUserId: targetUserId },
+                    { assignedUserId: targetUserId },
+                  ],
+                },
+                { projectId: { in: accessibleIds } },
+              ],
+            },
+      include: taskInclude,
     });
+
     res.json(tasks);
   } catch (error: any) {
     res
