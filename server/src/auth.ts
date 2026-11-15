@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma.js";
 import { sendEmail } from "./lib/email.js";
@@ -77,6 +78,45 @@ export const createAuth = (database: AuthDatabase) =>
       // x-forwarded-for. Without a resolvable client IP every caller shares a
       // single rate-limit bucket.
       ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          // Registration maps Better Auth's `name` onto `username`. Validate it
+          // here so a bad or duplicate username is a friendly 400 instead of a
+          // Prisma unique-constraint 500.
+          before: async (user) => {
+            const username =
+              typeof user.name === "string" ? user.name.trim() : "";
+
+            if (username.length < 3 || username.length > 40) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Username must be between 3 and 40 characters",
+              });
+            }
+
+            if (!/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(username)) {
+              throw new APIError("BAD_REQUEST", {
+                message:
+                  "Username can only use letters, numbers, spaces, dots, dashes, and underscores",
+              });
+            }
+
+            const existing = await (database as typeof prisma).user.findUnique({
+              where: { username },
+              select: { id: true },
+            });
+
+            if (existing) {
+              throw new APIError("BAD_REQUEST", {
+                message: "That username is already taken",
+              });
+            }
+
+            return { data: { ...user, name: username } };
+          },
+        },
+      },
     },
     user: {
       // The database already stores these columns; map instead of renaming so the

@@ -3,6 +3,7 @@
 import Header from "@/components/Header";
 import ModalNewTask from "@/components/ModalNewTask";
 import TaskCard from "@/components/TaskCard";
+import { useSession } from "@/lib/auth-client";
 import { Priority, Task, useGetTasksByUserQuery } from "@/state/api";
 import { useState } from "react";
 
@@ -13,12 +14,18 @@ type Props = {
 const ReusablePage = ({ priority }: Props) => {
     const [isModalNewTaskOpen, setIsModalNewTaskOpen] = useState(false);
 
-    const userId = 1;
+    const { data: session } = useSession();
+    const sessionUserId = Number(session?.user?.id);
+    const userId =
+        Number.isInteger(sessionUserId) && sessionUserId > 0
+            ? sessionUserId
+            : null;
+
     const {
         data: tasks,
         isLoading,
         isError: isTasksError,
-    } = useGetTasksByUserQuery(userId || 0, {
+    } = useGetTasksByUserQuery(userId ?? 0, {
         skip: userId === null,
     });
 
@@ -26,7 +33,8 @@ const ReusablePage = ({ priority }: Props) => {
         (task: Task) => task.priority === priority,
     );
 
-    if (isTasksError || !tasks) return <div>Error fetching tasks</div>;
+    if (userId === null || isLoading) return <div>Loading tasks...</div>;
+    if (isTasksError) return <div>Error fetching tasks</div>;
 
     return (
         <div className="m-5 p-4">

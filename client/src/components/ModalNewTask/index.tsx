@@ -36,7 +36,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
   const {
     data: users = [],
     isLoading: isUsersLoading,
-    isError: isUsersError,
   } = useGetUsersQuery();
   const {
     data: projects = [],
@@ -50,14 +49,12 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
   const [tags, setTags] = useState("");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [authorUserId, setAuthorUserId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [points, setPoints] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
 
-  const authorIdNumber = Number(authorUserId);
   const projectIdNumber = hasProjectId ? Number(id) : Number(projectId);
   const assignedIdNumber = assignedUserId ? Number(assignedUserId) : null;
 
@@ -80,7 +77,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
 
   const isFormValid =
     title.trim().length > 0 &&
-    isValidId(authorIdNumber) &&
     isValidId(projectIdNumber) &&
     (assignedIdNumber === null || isValidId(assignedIdNumber));
 
@@ -92,7 +88,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
     setTags("");
     setStartDate("");
     setDueDate("");
-    setAuthorUserId("");
     setAssignedUserId("");
     setProjectId("");
     setPoints("");
@@ -121,7 +116,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
         startDate: toIsoDate(startDate),
         dueDate: toIsoDate(dueDate),
         points: points ? Number(points) : undefined,
-        authorUserId: authorIdNumber,
         assignedUserId: assignedIdNumber ?? undefined,
         projectId: projectIdNumber,
         files,
@@ -289,40 +283,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
               onChange={(e) => setDueDate(e.target.value)}
             />
           </div>
-        </div>
-        <div>
-          <label htmlFor="task-author-id" className={labelStyles}>
-            Author
-          </label>
-          <select
-            id="task-author-id"
-            className={selectStyles}
-            value={authorUserId}
-            onChange={(e) => setAuthorUserId(e.target.value)}
-            disabled={isUsersLoading}
-          >
-            <option value="" disabled className="text-brand-900 bg-brand-200">
-              {isUsersLoading
-                ? "Loading users…"
-                : isUsersError
-                  ? "Failed to load users"
-                  : "Select author…"}
-            </option>
-            {sortedUsers.map((user) => (
-              <option
-                key={user.id}
-                value={String(user.id)}
-                className="text-brand-900 bg-brand-200"
-              >
-                {user.username} (#{user.id})
-              </option>
-            ))}
-          </select>
-          {isUsersError && (
-            <p className="mt-1 text-xs text-red-600">
-              Could not load users. Please refresh and try again.
-            </p>
-          )}
         </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
           <div>

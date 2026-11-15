@@ -1,11 +1,12 @@
 "use client";
 
 import { useAppDispatch, useAppSelector } from "@/app/redux";
+import { useSession } from "@/lib/auth-client";
 import { priorityMeta, projectPhase, projectPhaseMeta } from "@/lib/taskStyles";
 import {
   Priority,
+  useGetAllTasksQuery,
   useGetProjectsQuery,
-  useGetTasksByUserQuery,
 } from "@/state/api";
 import { setIsSidebarCollapsed } from "@/state";
 import {
@@ -13,7 +14,6 @@ import {
   ChevronRight,
   Clock,
   Home,
-  LockIcon,
   PanelLeftClose,
   Search,
   User,
@@ -21,15 +21,12 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
-const CURRENT_USER_ID = 1;
-
 const MAIN_LINKS: { icon: LucideIcon; label: string; href: string }[] = [
-  { icon: Home, label: "Home", href: "/" },
+  { icon: Home, label: "Home", href: "/home" },
   { icon: Clock, label: "Timeline", href: "/timeline" },
   { icon: Users, label: "Teams", href: "/teams" },
   { icon: User, label: "People", href: "/user" },
@@ -84,8 +81,7 @@ const SidebarLink = ({
   onNavigate,
 }: SidebarLinkProps) => {
   const pathname = usePathname();
-  const isActive =
-    href === "/" ? pathname === "/" || pathname === "/home" : pathname === href;
+  const isActive = pathname === href;
 
   return (
     <Link
@@ -127,13 +123,38 @@ const SidebarLink = ({
   );
 };
 
+const initialsFor = (value: string) =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "U";
+
 const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
   const [showProjects, setShowProjects] = useState(true);
   const [showPriority, setShowPriority] = useState(true);
   const [projectFilter, setProjectFilter] = useState("");
 
+  const { data: session } = useSession();
+  const currentUser = session?.user;
+  const sessionUserId = Number(currentUser?.id);
+  const currentUserId =
+    Number.isInteger(sessionUserId) && sessionUserId > 0 ? sessionUserId : null;
+
   const { data: projects = [] } = useGetProjectsQuery();
-  const { data: myTasks = [] } = useGetTasksByUserQuery(CURRENT_USER_ID);
+  const { data: allTasks = [] } = useGetAllTasksQuery();
+
+  const myTasks = useMemo(() => {
+    if (currentUserId === null) return [];
+
+    return allTasks.filter(
+      (task) =>
+        task.authorUserId === currentUserId ||
+        task.assignedUserId === currentUserId,
+    );
+  }, [allTasks, currentUserId]);
 
   const dispatch = useAppDispatch();
   const isSidebarCollapsed = useAppSelector(
@@ -178,7 +199,7 @@ const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
       {/* Brand */}
       <div className="border-brand-500/80 flex h-14 shrink-0 items-center justify-between border-b px-3">
         <Link
-          href="/"
+          href="/home"
           onClick={onMobileClose}
           className="flex items-center gap-2 rounded-lg px-1 py-1 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"
         >
@@ -365,26 +386,19 @@ const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
       {/* Workspace footer */}
       <div className="border-brand-500/80 shrink-0 border-t p-3">
         <Link
-          href="/teams"
+          href="/user"
           onClick={onMobileClose}
           className="border-brand-500/80 bg-brand-100 hover:bg-brand-200 flex items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"
         >
-          <span className="border-brand-500/80 bg-brand-300 relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border">
-            <Image
-              src="/logo.png"
-              alt=""
-              width={28}
-              height={28}
-              className="h-full w-full object-cover"
-            />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-[10px] font-bold text-white">
+            {initialsFor(currentUser?.name ?? "")}
           </span>
           <span className="min-w-0 flex-1">
             <span className="text-brand-900 block truncate text-xs font-semibold">
-              Shaun Team
+              {currentUser?.name ?? "Your account"}
             </span>
-            <span className="text-brand-700 mt-0.5 flex items-center gap-1 text-[10px] font-medium">
-              <LockIcon className="h-2.5 w-2.5" aria-hidden="true" />
-              Private
+            <span className="text-brand-700 mt-0.5 block truncate text-[10px] font-medium">
+              {currentUser?.email ?? "Signed in"}
             </span>
           </span>
           <ChevronRight

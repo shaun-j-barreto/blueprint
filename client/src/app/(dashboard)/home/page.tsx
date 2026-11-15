@@ -1,6 +1,6 @@
 "use client";
 
-import ModalNewProject from "@/app/projects/ModalNewProject";
+import ModalNewProject from "@/app/(dashboard)/projects/ModalNewProject";
 import ModalNewTask from "@/components/ModalNewTask";
 import {
     PriorityChip,
@@ -26,6 +26,7 @@ import {
     type Project,
     type Task,
 } from "@/state/api";
+import { useSession } from "@/lib/auth-client";
 import {
     AlertCircle,
     AlertTriangle,
@@ -39,8 +40,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
-
-const CURRENT_USER_ID = 1;
 
 const STATUS_ORDER: Status[] = [
     Status.ToDo,
@@ -530,6 +529,14 @@ const HomePage = () => {
     const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
     const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
 
+    const { data: session } = useSession();
+    const currentUser = session?.user;
+    const sessionUserId = Number(currentUser?.id);
+    const currentUserId =
+        Number.isInteger(sessionUserId) && sessionUserId > 0
+            ? sessionUserId
+            : null;
+
     const {
         data: tasks,
         isLoading: isTasksLoading,
@@ -639,8 +646,8 @@ const HomePage = () => {
 
         const myTasksAll = allTasks.filter(
             (task) =>
-                task.authorUserId === CURRENT_USER_ID ||
-                task.assignedUserId === CURRENT_USER_ID,
+                task.authorUserId === currentUserId ||
+                task.assignedUserId === currentUserId,
         );
 
         const myTasks = [...myTasksAll]
@@ -730,7 +737,7 @@ const HomePage = () => {
             statusRows,
             priorityRows,
         };
-    }, [tasks, projects]);
+    }, [tasks, projects, currentUserId]);
 
     if (isTasksLoading || isProjectsLoading) return <DashboardSkeleton />;
 
@@ -753,7 +760,9 @@ const HomePage = () => {
                         Overview
                     </p>
                     <h1 className="text-brand-900 mt-1 text-2xl font-semibold tracking-tight">
-                        Welcome back
+                        {currentUser?.name
+                            ? `Welcome back, ${currentUser.name}`
+                            : "Welcome back"}
                     </h1>
                     <p className="text-brand-700 mt-1 text-xs">
                         Here’s what’s moving across your projects.

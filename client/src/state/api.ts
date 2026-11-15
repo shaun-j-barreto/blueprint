@@ -1,4 +1,9 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query";
 
 export interface Project {
   id: number;
@@ -102,7 +107,6 @@ export type CreateTaskPayload = {
   dueDate?: string;
   points?: number;
   projectId: number;
-  authorUserId: number;
   assignedUserId?: number;
   files?: File[];
 };
@@ -132,8 +136,44 @@ export type DeleteAttachmentResult = {
   taskId: number;
 };
 
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+  credentials: "include",
+});
+
+const isAuthPage = (pathname: string) =>
+  pathname === "/login" ||
+  pathname === "/signup" ||
+  pathname.startsWith("/login/") ||
+  pathname.startsWith("/signup/");
+
+/**
+ * An expired or revoked session must not leave the dashboard showing empty
+ * panels. Send the browser through the login page with a return path; the
+ * auth pages are excluded so a failed request cannot loop.
+ */
+const baseQueryWithAuth: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error?.status === 401 && typeof window !== "undefined") {
+    const { pathname, search } = window.location;
+
+    if (!isAuthPage(pathname)) {
+      window.location.replace(
+        `/login?next=${encodeURIComponent(`${pathname}${search}`)}`,
+      );
+    }
+  }
+
+  return result;
+};
+
 export const api = createApi({
-  baseQuery: fetchBaseQuery({ baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL }),
+  baseQuery: baseQueryWithAuth,
   reducerPath: "api",
   tagTypes: ["Projects", "Tasks", "Users", "Teams"],
   endpoints: (build) => ({
@@ -196,16 +236,12 @@ export const api = createApi({
       invalidatesTags: (
         result,
         error,
-        { projectId, authorUserId, assignedUserId },
+        { projectId, assignedUserId },
       ) => {
         const tags: { type: "Tasks"; id?: string | number }[] = [
           { type: "Tasks", id: `PROJECT_${projectId}` },
           { type: "Tasks" },
         ];
-
-        if (authorUserId) {
-          tags.push({ type: "Tasks", id: `USER_${authorUserId}` });
-        }
 
         if (assignedUserId) {
           tags.push({ type: "Tasks", id: `USER_${assignedUserId}` });
