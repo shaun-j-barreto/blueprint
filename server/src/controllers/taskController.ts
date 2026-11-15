@@ -8,6 +8,7 @@ import {
   publicUserSelect,
 } from "../lib/access.js";
 import { attachmentCreatePayload } from "../lib/attachments.js";
+import { notifyTaskAssignment } from "../lib/notifications.js";
 import { currentProject, currentUser } from "../middleware/auth.js";
 import {
   projectIdQuerySchema,
@@ -157,6 +158,14 @@ export const createTask = async (
     });
 
     res.status(201).json(newTask);
+
+    if (assignedUserId !== null && assignedUserId !== user.id) {
+      void notifyTaskAssignment({
+        taskId: newTask.id,
+        assigneeId: assignedUserId,
+        actorName: user.username,
+      }).catch((error) => console.error("Assignment email failed", error));
+    }
   } catch (error: any) {
     if (error.code === "P2003") {
       res.status(400).json({ message: "Project or assignee does not exist" });
@@ -183,7 +192,12 @@ export const updateTask = async (
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, authorUserId: true, projectId: true },
+      select: {
+        id: true,
+        authorUserId: true,
+        assignedUserId: true,
+        projectId: true,
+      },
     });
 
     if (!task) {
@@ -274,6 +288,19 @@ export const updateTask = async (
     });
 
     res.json(updatedTask);
+
+    const nextAssignee = updatedTask.assignedUserId;
+    if (
+      nextAssignee !== null &&
+      nextAssignee !== task.assignedUserId &&
+      nextAssignee !== user.id
+    ) {
+      void notifyTaskAssignment({
+        taskId: updatedTask.id,
+        assigneeId: nextAssignee,
+        actorName: user.username,
+      }).catch((error) => console.error("Assignment email failed", error));
+    }
   } catch (error: any) {
     if (error.code === "P2025") {
       res.status(404).json({ message: "Task not found" });

@@ -38,8 +38,53 @@ export const publicUserSelect = {
   profilePictureUrl: true,
 } as const;
 
+/**
+ * The workspace directory is visible to every signed-in teammate, so it can
+ * include the email that the UI already renders on person cards. It still
+ * excludes role and audit columns.
+ */
+export const directoryUserSelect = {
+  ...publicUserSelect,
+  email: true,
+  teamId: true,
+} as const;
+
+/** Full member record for the Owner/Admin-only members screen. */
+export const memberUserSelect = {
+  id: true,
+  username: true,
+  email: true,
+  role: true,
+  profilePictureUrl: true,
+  teamId: true,
+  onboardedAt: true,
+  deactivatedAt: true,
+  createdAt: true,
+} as const;
+
 export const isWorkspaceAdmin = (user: AuthUser): boolean =>
   user.role === "OWNER" || user.role === "ADMIN";
+
+/** Number of owners who could still administer the workspace. */
+export const countActiveOwners = (): Promise<number> =>
+  prisma.user.count({ where: { role: "OWNER", deactivatedAt: null } });
+
+/**
+ * Guards every path that could leave the workspace without an owner: demoting,
+ * deactivating, or deleting the last one.
+ */
+export const isLastActiveOwner = async (userId: number): Promise<boolean> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, deactivatedAt: true },
+  });
+
+  if (!user || user.role !== "OWNER" || user.deactivatedAt !== null) {
+    return false;
+  }
+
+  return (await countActiveOwners()) <= 1;
+};
 
 /**
  * Project ids the user may read. `null` means "every project" (owners and
@@ -69,6 +114,14 @@ export const projectRoleFor = async (
 
   return membership?.role ?? null;
 };
+
+/** Project members with their project role, for pickers and sharing UI. */
+export const projectMemberUserSelect = {
+  id: true,
+  username: true,
+  email: true,
+  profilePictureUrl: true,
+} as const;
 
 /** Assignees must be active members of the task's project. */
 export const isActiveProjectMember = async (
