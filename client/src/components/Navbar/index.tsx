@@ -2,8 +2,9 @@
 
 import { useAppDispatch, useAppSelector } from "@/app/redux";
 import { authClient, useSession } from "@/lib/auth-client";
+import { ROLE_LABELS, usePermissions } from "@/lib/permissions";
 import { setIsDarkMode, setIsSidebarCollapsed } from "@/state";
-import { ChevronDown, LogOut, Menu, Moon, Search, Sun, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Moon, Search, Settings, Sun, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -27,6 +28,7 @@ const Navbar = ({ isMobileSidebarOpen, onOpenMobileSidebar }: NavbarProps) => {
   const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
+  const { role, isAdmin } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
@@ -169,8 +171,13 @@ const Navbar = ({ isMobileSidebarOpen, onOpenMobileSidebar }: NavbarProps) => {
               className="border-brand-500/80 bg-brand-100 absolute top-full right-0 z-50 mt-1.5 w-60 overflow-hidden rounded-xl border shadow-lg shadow-slate-900/10"
             >
               <div className="border-brand-500/70 border-b px-3 py-2.5">
-                <p className="text-brand-900 truncate text-xs font-semibold">
-                  {user?.name ?? "Signed in"}
+                <p className="text-brand-900 flex items-center gap-1.5 truncate text-xs font-semibold">
+                  <span className="truncate">{user?.name ?? "Signed in"}</span>
+                  {role && (
+                    <span className="border-brand-500/70 bg-brand-200 text-brand-700 shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide">
+                      {ROLE_LABELS[role]}
+                    </span>
+                  )}
                 </p>
                 <p className="text-brand-700 mt-0.5 truncate text-[11px]">
                   {user?.email ?? ""}
@@ -185,6 +192,17 @@ const Navbar = ({ isMobileSidebarOpen, onOpenMobileSidebar }: NavbarProps) => {
                 <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
                 View profile
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/settings"
+                  role="menuitem"
+                  onClick={() => setIsAccountOpen(false)}
+                  className="text-brand-800 hover:bg-brand-300 flex w-full items-center gap-2 px-3 py-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none focus-visible:ring-inset"
+                >
+                  <Settings className="h-3.5 w-3.5" aria-hidden="true" />
+                  Workspace settings
+                </Link>
+              )}
               <button
                 type="button"
                 role="menuitem"

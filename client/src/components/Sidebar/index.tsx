@@ -2,6 +2,7 @@
 
 import { useAppDispatch, useAppSelector } from "@/app/redux";
 import { useSession } from "@/lib/auth-client";
+import { ROLE_LABELS, usePermissions } from "@/lib/permissions";
 import { priorityMeta, projectPhase, projectPhaseMeta } from "@/lib/taskStyles";
 import {
   Priority,
@@ -16,6 +17,7 @@ import {
   Home,
   PanelLeftClose,
   Search,
+  Settings,
   User,
   Users,
   X,
@@ -139,6 +141,7 @@ const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
 
   const { data: session } = useSession();
   const currentUser = session?.user;
+  const { role, isAdmin } = usePermissions();
   const sessionUserId = Number(currentUser?.id);
   const currentUserId =
     Number.isInteger(sessionUserId) && sessionUserId > 0 ? sessionUserId : null;
@@ -247,6 +250,14 @@ const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
                 onNavigate={onMobileClose}
               />
             ))}
+            {isAdmin && (
+              <SidebarLink
+                href="/settings"
+                icon={<Settings className="h-4 w-4" />}
+                label="Settings"
+                onNavigate={onMobileClose}
+              />
+            )}
           </div>
         </nav>
 
@@ -394,8 +405,15 @@ const Sidebar = ({ isMobileOpen, onMobileClose }: SidebarProps) => {
             {initialsFor(currentUser?.name ?? "")}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-brand-900 block truncate text-xs font-semibold">
-              {currentUser?.name ?? "Your account"}
+            <span className="flex items-center gap-1.5">
+              <span className="text-brand-900 block truncate text-xs font-semibold">
+                {currentUser?.name ?? "Your account"}
+              </span>
+              {role && (
+                <span className="border-brand-500/70 bg-brand-200 text-brand-700 shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide">
+                  {ROLE_LABELS[role]}
+                </span>
+              )}
             </span>
             <span className="text-brand-700 mt-0.5 block truncate text-[10px] font-medium">
               {currentUser?.email ?? "Signed in"}

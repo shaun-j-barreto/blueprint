@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-import StoreProvider, { useAppSelector } from "./redux";
+import { useAppSelector } from "./redux";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   // Store the path the drawer was opened on. Comparing it with the current
@@ -104,10 +104,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 };
 
 const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <StoreProvider>
-      <DashboardLayout>{children}</DashboardLayout>
-    </StoreProvider>
-  );
+  return <DashboardLayout>{children}</DashboardLayout>;
 };
 export default DashboardWrapper;

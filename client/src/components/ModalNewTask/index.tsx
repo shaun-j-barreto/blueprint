@@ -5,10 +5,9 @@ import AttachmentPicker from "@/components/AttachmentPicker";
 import {
   Priority,
   Status,
-  User,
   useCreateTaskMutation,
+  useGetProjectMembersQuery,
   useGetProjectsQuery,
-  useGetUsersQuery,
 } from "@/state/api";
 import { useMemo, useState } from "react";
 import { MAX_ATTACHMENT_FILES } from "@/lib/attachments";
@@ -34,10 +33,6 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
   const routeProjectId = Number(id);
   const hasProjectId = Number.isInteger(routeProjectId) && routeProjectId > 0;
   const {
-    data: users = [],
-    isLoading: isUsersLoading,
-  } = useGetUsersQuery();
-  const {
     data: projects = [],
     isLoading: isProjectsLoading,
     isError: isProjectsError,
@@ -57,16 +52,27 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
 
   const projectIdNumber = hasProjectId ? Number(id) : Number(projectId);
   const assignedIdNumber = assignedUserId ? Number(assignedUserId) : null;
+  const isProjectReady =
+    Number.isInteger(projectIdNumber) && projectIdNumber > 0;
 
-  const sortedUsers = useMemo(
+  // Assignees must already belong to the project; the server rejects anyone
+  // else with a 422, so the picker never offers the whole workspace.
+  const {
+    data: projectMembers,
+    isLoading: isMembersLoading,
+    isError: isMembersError,
+  } = useGetProjectMembersQuery(projectIdNumber, { skip: !isProjectReady });
+
+  const sortedAssignees = useMemo(
     () =>
-      [...users]
-        .filter(
-          (user): user is User & { id: number } => typeof user.id === "number",
-        )
-        .sort((a, b) => a.username.localeCompare(b.username)),
-    [users],
+      [...(projectMembers?.members ?? [])].sort((a, b) =>
+        a.username.localeCompare(b.username),
+      ),
+    [projectMembers],
   );
+
+  // Switching projects invalidates an assignee chosen for the previous one;
+  // the project picker clears it in its change handler below.
 
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.name.localeCompare(b.name)),
@@ -294,21 +300,41 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
               className={selectStyles}
               value={assignedUserId}
               onChange={(e) => setAssignedUserId(e.target.value)}
-              disabled={isUsersLoading}
+              disabled={!isProjectReady || isMembersLoading}
             >
               <option value="" className="text-brand-900 bg-brand-200">
-                Unassigned
+                {!isProjectReady
+                  ? "Select a project first"
+                  : isMembersLoading
+                    ? "Loading project members…"
+                    : isMembersError
+                      ? "Failed to load members"
+                      : "Unassigned"}
               </option>
-              {sortedUsers.map((user) => (
+              {sortedAssignees.map((member) => (
                 <option
-                  key={user.id}
-                  value={String(user.id)}
+                  key={member.id}
+                  value={String(member.id)}
                   className="text-brand-900 bg-brand-200"
                 >
-                  {user.username} (#{user.id})
+                  {member.username} (#{member.id})
                 </option>
               ))}
             </select>
+            {isProjectReady &&
+              !isMembersLoading &&
+              !isMembersError &&
+              sortedAssignees.length === 0 && (
+                <p className="text-brand-700 mt-1 text-[11px]">
+                  No one is on this project yet. Create the task unassigned, or
+                  add project members from Settings.
+                </p>
+              )}
+            {isMembersError && (
+              <p className="mt-1 text-xs text-red-600">
+                Could not load project members. Please refresh and try again.
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="task-points" className={labelStyles}>
@@ -334,7 +360,11 @@ const ModalNewTask = ({ isOpen, onClose, id = null }: Props) => {
               id="task-project-id"
               className={selectStyles}
               value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
+              onChange={(e) => {
+                setProjectId(e.target.value);
+                // Assignees belong to a project, so a new project starts clean.
+                setAssignedUserId("");
+              }}
               disabled={isProjectsLoading}
             >
               <option value="" disabled>

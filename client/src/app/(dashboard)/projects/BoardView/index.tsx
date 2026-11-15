@@ -7,6 +7,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "@/state/api";
 import { Plus } from "lucide-react";
 import TaskCard from "@/components/TaskCard";
+import { useProjectPermissions } from "@/lib/permissions";
 import { statusMeta } from "@/lib/taskStyles";
 
 type BoardProps = {
@@ -19,12 +20,14 @@ type TaskColumnProps = {
     tasks: TaskType[];
     moveTask: (taskId: number, toStatus: string) => void;
     setIsModalNewTaskOpen: (isOpen: boolean) => void;
+    canContribute: boolean;
 };
 
 const taskStatus = ["To Do", "Work In Progress", "Under Review", "Completed"];
 
 const BoardView = ({ id, setIsModalNewTaskOpen }: BoardProps) => {
     const projectId = Number(id);
+    const { canContribute } = useProjectPermissions(projectId);
 
     const {
         data: tasks,
@@ -61,6 +64,7 @@ const BoardView = ({ id, setIsModalNewTaskOpen }: BoardProps) => {
                         tasks={tasks || []}
                         moveTask={moveTask}
                         setIsModalNewTaskOpen={setIsModalNewTaskOpen}
+                        canContribute={canContribute}
                     />
                 ))}
             </div>
@@ -73,6 +77,7 @@ const TaskColumn = ({
     tasks,
     moveTask,
     setIsModalNewTaskOpen,
+    canContribute,
 }: TaskColumnProps) => {
     const [{ isOver }, drop] = useDrop(() => ({
         accept: "task",
@@ -108,20 +113,26 @@ const TaskColumn = ({
                         {columnTasks.length}
                     </span>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setIsModalNewTaskOpen(true)}
-                    title={`Add task to ${status}`}
-                    aria-label={`Add task to ${status}`}
-                    className="text-brand-700 hover:bg-brand-400 hover:text-brand-900 dark:text-brand-800 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors"
-                >
-                    <Plus size={16} />
-                </button>
+                {canContribute && (
+                    <button
+                        type="button"
+                        onClick={() => setIsModalNewTaskOpen(true)}
+                        title={`Add task to ${status}`}
+                        aria-label={`Add task to ${status}`}
+                        className="text-brand-700 hover:bg-brand-400 hover:text-brand-900 dark:text-brand-800 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors"
+                    >
+                        <Plus size={16} />
+                    </button>
+                )}
             </div>
 
             <div className="min-h-[72px]">
                 {columnTasks.map((task) => (
-                    <Task key={task.id} task={task} />
+                    <Task
+                        key={task.id}
+                        task={task}
+                        canContribute={canContribute}
+                    />
                 ))}
 
                 {columnTasks.length === 0 && (
@@ -136,16 +147,21 @@ const TaskColumn = ({
 
 type TaskProps = {
     task: TaskType;
+    canContribute: boolean;
 };
 
-const Task = ({ task }: TaskProps) => {
-    const [{ isDragging }, drag] = useDrag(() => ({
-        type: "task",
-        item: { id: task.id },
-        collect: (monitor: any) => ({
-            isDragging: !!monitor.isDragging(),
+const Task = ({ task, canContribute }: TaskProps) => {
+    const [{ isDragging }, drag] = useDrag(
+        () => ({
+            type: "task",
+            item: { id: task.id },
+            canDrag: canContribute,
+            collect: (monitor: any) => ({
+                isDragging: !!monitor.isDragging(),
+            }),
         }),
-    }));
+        [canContribute],
+    );
 
     return (
         <div

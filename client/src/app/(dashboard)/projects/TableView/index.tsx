@@ -6,6 +6,7 @@ import {
     UserAvatar,
 } from "@/components/TaskChips";
 import ModalEditTask from "@/components/ModalEditTask";
+import { useProjectPermissions } from "@/lib/permissions";
 import { priorityRank, statusRank, taskDateInfo } from "@/lib/taskStyles";
 import {
     taskDataGridClassNames,
@@ -39,6 +40,8 @@ const EMPTY_VALUE = (
 const TaskRowActions = ({ task }: { task: Task }) => {
     const [deleteTask, { isLoading }] = useDeleteTaskMutation();
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const { canContribute, user } = useProjectPermissions(task.projectId);
+    const canDelete = canContribute || task.authorUserId === user?.id;
 
     const handleDelete = async () => {
         if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`))
@@ -51,27 +54,33 @@ const TaskRowActions = ({ task }: { task: Task }) => {
         }
     };
 
+    if (!canContribute && !canDelete) return null;
+
     return (
         <div className="task-row-actions flex items-center gap-0.5">
-            <button
-                type="button"
-                onClick={() => setIsEditOpen(true)}
-                title="Edit task"
-                aria-label={`Edit task ${task.title}`}
-                className="text-brand-800 hover:bg-brand-400 hover:text-brand-900 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
-            >
-                <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isLoading}
-                title="Delete task"
-                aria-label={`Delete task ${task.title}`}
-                className="text-brand-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            >
-                <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {canContribute && (
+                <button
+                    type="button"
+                    onClick={() => setIsEditOpen(true)}
+                    title="Edit task"
+                    aria-label={`Edit task ${task.title}`}
+                    className="text-brand-800 hover:bg-brand-400 hover:text-brand-900 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
+                >
+                    <Pencil className="h-3.5 w-3.5" />
+                </button>
+            )}
+            {canDelete && (
+                <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isLoading}
+                    title="Delete task"
+                    aria-label={`Delete task ${task.title}`}
+                    className="text-brand-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </button>
+            )}
             {isEditOpen && (
                 <ModalEditTask
                     isOpen={isEditOpen}
@@ -298,6 +307,7 @@ const TableView = ({ id, setIsModalNewTaskOpen }: Props) => {
 
     const projectId = Number(id);
     const queryArgs = useMemo(() => ({ projectId }), [projectId]);
+    const { canContribute } = useProjectPermissions(projectId);
 
     const {
         data: tasks,
@@ -352,7 +362,7 @@ const TableView = ({ id, setIsModalNewTaskOpen }: Props) => {
             </div>
         );
 
-    const addTaskButton = (
+    const addTaskButton = canContribute ? (
         <button
             type="button"
             onClick={() => setIsModalNewTaskOpen(true)}
@@ -360,7 +370,7 @@ const TableView = ({ id, setIsModalNewTaskOpen }: Props) => {
         >
             Add New Task
         </button>
-    );
+    ) : null;
 
     return (
         <div className="px-4 pb-8 xl:px-6">

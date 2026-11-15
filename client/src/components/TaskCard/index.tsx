@@ -1,6 +1,7 @@
 'use client';
 
 import { Task, useDeleteTaskMutation } from '@/state/api';
+import { useProjectPermissions } from '@/lib/permissions';
 import { useState } from 'react';
 import {
     AlertCircle,
@@ -29,6 +30,8 @@ type TaskCardProps = {
 const TaskCard = ({ task, variant = 'grid', isDragging = false }: TaskCardProps) => {
     const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const { canContribute, user } = useProjectPermissions(task.projectId);
+    const canDelete = canContribute || task.authorUserId === user?.id;
 
     const isBoard = variant === 'board';
     const dates = taskDateInfo(task);
@@ -79,25 +82,29 @@ const TaskCard = ({ task, variant = 'grid', isDragging = false }: TaskCardProps)
                         )}
 
                         <div className="flex items-center gap-0.5 transition-opacity duration-150 sm:pointer-events-none sm:opacity-0 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100">
-                            <button
-                                type="button"
-                                onClick={() => setIsEditOpen(true)}
-                                title="Edit task"
-                                aria-label={`Edit task ${task.title}`}
-                                className="text-brand-800 hover:bg-brand-400 hover:text-brand-900 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
-                            >
-                                <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                title="Delete task"
-                                aria-label={`Delete task ${task.title}`}
-                                className="text-brand-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            {canContribute && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditOpen(true)}
+                                    title="Edit task"
+                                    aria-label={`Edit task ${task.title}`}
+                                    className="text-brand-800 hover:bg-brand-400 hover:text-brand-900 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                            {canDelete && (
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    title="Delete task"
+                                    aria-label={`Delete task ${task.title}`}
+                                    className="text-brand-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

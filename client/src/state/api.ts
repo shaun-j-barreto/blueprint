@@ -54,6 +54,78 @@ export interface Team {
   projects?: Pick<Project, "id" | "name">[];
 }
 
+export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export type ProjectRole = "MANAGER" | "CONTRIBUTOR" | "VIEWER";
+
+export interface CurrentUser {
+  id: number;
+  email: string;
+  username: string;
+  role: WorkspaceRole;
+  onboardedAt: string | null;
+  deactivatedAt: string | null;
+}
+
+export interface WorkspaceMember extends CurrentUser {
+  profilePictureUrl?: string | null;
+  teamId?: number | null;
+  createdAt?: string;
+  _count?: { projectMembers: number };
+}
+
+export interface ProjectMember {
+  id: number;
+  username: string;
+  email: string;
+  profilePictureUrl?: string | null;
+  role: ProjectRole;
+}
+
+export interface ProjectMembersResponse {
+  projectId: number;
+  myRole: ProjectRole;
+  members: ProjectMember[];
+}
+
+export interface InvitationProjectSummary {
+  projectId: number;
+  name: string;
+  role: ProjectRole;
+}
+
+export interface Invitation {
+  id: number;
+  email: string;
+  maskedEmail: string;
+  role: WorkspaceRole;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expiresAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  invitedBy: string;
+  projects: InvitationProjectSummary[];
+  inviteUrl?: string;
+  emailDelivered?: boolean;
+  mailerConfigured?: boolean;
+}
+
+export interface InvitationPreview {
+  email: string;
+  maskedEmail: string;
+  role: WorkspaceRole;
+  inviterName: string;
+  expiresAt: string;
+  workspaceName: string;
+  projects: InvitationProjectSummary[];
+}
+
+export interface CreateInvitationPayload {
+  email: string;
+  role: Exclude<WorkspaceRole, "OWNER">;
+  projects: Array<{ projectId: number; role: ProjectRole }>;
+}
+
 export interface Attachment {
   id: number;
   fileURL?: string | null;
@@ -175,7 +247,7 @@ const baseQueryWithAuth: BaseQueryFn<
 export const api = createApi({
   baseQuery: baseQueryWithAuth,
   reducerPath: "api",
-  tagTypes: ["Projects", "Tasks", "Users", "Teams"],
+  tagTypes: ["Projects", "Tasks", "Users", "Teams", "Me", "Members", "Invitations"],
   endpoints: (build) => ({
     getProjects: build.query<Project[], void>({
       query: () => "projects",
@@ -328,6 +400,142 @@ export const api = createApi({
       query: () => "teams",
       providesTags: ["Teams"],
     }),
+    getMe: build.query<{ user: CurrentUser }, void>({
+      query: () => "auth/me",
+      providesTags: ["Me"],
+    }),
+    updateMe: build.mutation<
+      WorkspaceMember,
+      { username?: string; profilePictureUrl?: string | null }
+    >({
+      query: (body) => ({ url: "users/me", method: "PATCH", body }),
+      invalidatesTags: ["Me", "Users", "Members"],
+    }),
+    completeOnboarding: build.mutation<
+      WorkspaceMember,
+      { username?: string; profilePictureUrl?: string | null }
+    >({
+      query: (body) => ({
+        url: "users/me/onboarding",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Me", "Users", "Members"],
+    }),
+    getMembers: build.query<WorkspaceMember[], void>({
+      query: () => "workspace/members",
+      providesTags: ["Members"],
+    }),
+    updateMemberRole: build.mutation<
+      WorkspaceMember,
+      { userId: number; role: WorkspaceRole }
+    >({
+      query: ({ userId, role }) => ({
+        url: `workspace/members/${userId}`,
+        method: "PATCH",
+        body: { role },
+      }),
+      invalidatesTags: ["Members", "Me", "Users"],
+    }),
+    deactivateMember: build.mutation<
+      { message: string; id: number; openAssignedTasks: number },
+      number
+    >({
+      query: (userId) => ({
+        url: `workspace/members/${userId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Members", "Users", "Tasks", "Teams"],
+    }),
+    reactivateMember: build.mutation<WorkspaceMember, number>({
+      query: (userId) => ({
+        url: `workspace/members/${userId}/reactivate`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Members", "Users"],
+    }),
+    getInvitations: build.query<Invitation[], void>({
+      query: () => "invitations",
+      providesTags: ["Invitations"],
+    }),
+    createInvitation: build.mutation<Invitation, CreateInvitationPayload>({
+      query: (body) => ({ url: "invitations", method: "POST", body }),
+      invalidatesTags: ["Invitations"],
+    }),
+    resendInvitation: build.mutation<Invitation, number>({
+      query: (invitationId) => ({
+        url: `invitations/${invitationId}/resend`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Invitations"],
+    }),
+    revokeInvitation: build.mutation<{ message: string; id: number }, number>({
+      query: (invitationId) => ({
+        url: `invitations/${invitationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Invitations"],
+    }),
+    getInvitationPreview: build.query<
+      { invitation: InvitationPreview },
+      string
+    >({
+      query: (token) => `invitations/${encodeURIComponent(token)}`,
+    }),
+    acceptInvitation: build.mutation<
+      {
+        message: string;
+        user: WorkspaceMember;
+        projectIds: number[];
+      },
+      string
+    >({
+      query: (token) => ({
+        url: `invitations/${encodeURIComponent(token)}/accept`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Me", "Projects", "Members", "Invitations", "Tasks"],
+    }),
+    getProjectMembers: build.query<ProjectMembersResponse, number>({
+      query: (projectId) => `projects/${projectId}/members`,
+      providesTags: (result, error, projectId) => [
+        { type: "Projects" as const, id: `MEMBERS_${projectId}` },
+      ],
+    }),
+    getProjectAccess: build.query<
+      { projectId: number; role: ProjectRole },
+      number
+    >({
+      query: (projectId) => `projects/${projectId}/access`,
+      providesTags: (result, error, projectId) => [
+        { type: "Projects" as const, id: `ACCESS_${projectId}` },
+      ],
+    }),
+    upsertProjectMember: build.mutation<
+      ProjectMember,
+      { projectId: number; userId: number; role: ProjectRole }
+    >({
+      query: ({ projectId, userId, role }) => ({
+        url: `projects/${projectId}/members/${userId}`,
+        method: "PUT",
+        body: { role },
+      }),
+      invalidatesTags: (result, error, { projectId }) => [
+        { type: "Projects", id: `MEMBERS_${projectId}` },
+      ],
+    }),
+    removeProjectMember: build.mutation<
+      { message: string; userId: number },
+      { projectId: number; userId: number }
+    >({
+      query: ({ projectId, userId }) => ({
+        url: `projects/${projectId}/members/${userId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { projectId }) => [
+        { type: "Projects", id: `MEMBERS_${projectId}` },
+      ],
+    }),
   }),
 });
 
@@ -347,4 +555,21 @@ export const {
   useGetUsersQuery,
   useGetTeamsQuery,
   useGetTasksByUserQuery,
+  useGetMeQuery,
+  useUpdateMeMutation,
+  useCompleteOnboardingMutation,
+  useGetMembersQuery,
+  useUpdateMemberRoleMutation,
+  useDeactivateMemberMutation,
+  useReactivateMemberMutation,
+  useGetInvitationsQuery,
+  useCreateInvitationMutation,
+  useResendInvitationMutation,
+  useRevokeInvitationMutation,
+  useGetInvitationPreviewQuery,
+  useAcceptInvitationMutation,
+  useGetProjectMembersQuery,
+  useGetProjectAccessQuery,
+  useUpsertProjectMemberMutation,
+  useRemoveProjectMemberMutation,
 } = api;

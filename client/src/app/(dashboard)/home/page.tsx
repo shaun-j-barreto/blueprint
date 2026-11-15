@@ -27,6 +27,7 @@ import {
     type Task,
 } from "@/state/api";
 import { useSession } from "@/lib/auth-client";
+import { usePermissions } from "@/lib/permissions";
 import {
     AlertCircle,
     AlertTriangle,
@@ -531,6 +532,7 @@ const HomePage = () => {
 
     const { data: session } = useSession();
     const currentUser = session?.user;
+    const { canCreateProject } = usePermissions();
     const sessionUserId = Number(currentUser?.id);
     const currentUserId =
         Number.isInteger(sessionUserId) && sessionUserId > 0
@@ -774,22 +776,26 @@ const HomePage = () => {
                         {dashboard.totalTasks} tasks ·{" "}
                         {dashboard.allProjects.length} projects
                     </CountPill>
-                    <button
-                        type="button"
-                        onClick={() => setIsNewProjectOpen(true)}
-                        className={SECONDARY_BUTTON_CLASS}
-                    >
-                        <FolderPlus className="h-3.5 w-3.5" />
-                        New project
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsNewTaskOpen(true)}
-                        className={PRIMARY_BUTTON_CLASS}
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        New task
-                    </button>
+                    {canCreateProject && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setIsNewProjectOpen(true)}
+                                className={SECONDARY_BUTTON_CLASS}
+                            >
+                                <FolderPlus className="h-3.5 w-3.5" />
+                                New project
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsNewTaskOpen(true)}
+                                className={PRIMARY_BUTTON_CLASS}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                New task
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 

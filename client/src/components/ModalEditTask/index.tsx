@@ -8,15 +8,15 @@ import {
     Priority,
     Status,
     Task,
-    User,
     useAddTaskAttachmentsMutation,
     useDeleteAttachmentMutation,
+    useGetProjectMembersQuery,
     useGetProjectsQuery,
-    useGetUsersQuery,
     useUpdateTaskMutation,
 } from "@/state/api";
 import { useEffect, useMemo, useState } from "react";
 import { MAX_ATTACHMENT_FILES } from "@/lib/attachments";
+import { usePermissions } from "@/lib/permissions";
 import {
     dateInputStyles,
     inputStyles,
@@ -51,11 +51,12 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const [updateTask, { isLoading }] = useUpdateTaskMutation();
     const [addTaskAttachments] = useAddTaskAttachmentsMutation();
     const [deleteAttachment] = useDeleteAttachmentMutation();
+    const permissions = usePermissions();
     const {
-        data: users = [],
-        isLoading: isUsersLoading,
-        isError: isUsersError,
-    } = useGetUsersQuery();
+        data: projectMembers,
+        isLoading: isMembersLoading,
+        isError: isMembersError,
+    } = useGetProjectMembersQuery(task.projectId);
     const { data: projects } = useGetProjectsQuery();
 
     const [title, setTitle] = useState(task.title ?? "");
@@ -112,13 +113,10 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
 
     const sortedUsers = useMemo(
         () =>
-            [...users]
-                .filter(
-                    (user): user is User & { id: number } =>
-                        typeof user.id === "number",
-                )
-                .sort((a, b) => a.username.localeCompare(b.username)),
-        [users],
+            [...(projectMembers?.members ?? [])].sort((a, b) =>
+                a.username.localeCompare(b.username),
+            ),
+        [projectMembers],
     );
 
     // Keep the current author visible even if that user is no longer returned
@@ -399,13 +397,15 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                         className={selectStyles}
                         value={authorUserId}
                         onChange={(e) => setAuthorUserId(e.target.value)}
-                        disabled={isUsersLoading}
+                        disabled={
+                            isMembersLoading || !permissions.canManageWorkspace
+                        }
                     >
                         <option value="" disabled className="text-brand-900 bg-brand-200">
-                            {isUsersLoading
-                                ? "Loading users…"
-                                : isUsersError
-                                    ? "Failed to load users"
+                            {isMembersLoading
+                                ? "Loading project members…"
+                                : isMembersError
+                                    ? "Failed to load members"
                                     : "Select author…"}
                         </option>
                         {authorOptions.map((user) => (
@@ -418,9 +418,14 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                             </option>
                         ))}
                     </select>
-                    {isUsersError && (
+                    {!permissions.canManageWorkspace && (
+                        <p className="text-brand-700 mt-1 text-[11px]">
+                            Only owners and admins can change the author.
+                        </p>
+                    )}
+                    {isMembersError && (
                         <p className="mt-1 text-xs text-red-600">
-                            Could not load users. Please refresh and try again.
+                            Could not load project members. Please refresh and try again.
                         </p>
                     )}
                 </div>
@@ -434,10 +439,14 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                             className={selectStyles}
                             value={assignedUserId}
                             onChange={(e) => setAssignedUserId(e.target.value)}
-                            disabled={isUsersLoading}
+                            disabled={isMembersLoading}
                         >
                             <option value="" className="text-brand-900 bg-brand-200">
-                                Unassigned
+                                {isMembersLoading
+                                    ? "Loading project members…"
+                                    : isMembersError
+                                        ? "Failed to load members"
+                                        : "Unassigned"}
                             </option>
                             {assigneeOptions.map((user) => (
                                 <option
@@ -449,6 +458,14 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                                 </option>
                             ))}
                         </select>
+                        {!isMembersLoading &&
+                            !isMembersError &&
+                            sortedUsers.length === 0 && (
+                                <p className="text-brand-700 mt-1 text-[11px]">
+                                    No one is on this project yet. Add project
+                                    members from Settings to assign work.
+                                </p>
+                            )}
                     </div>
                     <div>
                         <label htmlFor="edit-task-points" className={labelStyles}>

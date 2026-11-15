@@ -5,6 +5,7 @@ import TimelineChart, {
     TimelineRangeControl,
     type TimelineViewMode,
 } from "@/components/TimelineChart";
+import { useProjectPermissions } from "@/lib/permissions";
 import {
     formatTaskDateValue,
     statusMeta,
@@ -64,6 +65,7 @@ const TimelineView = ({ id, setIsModalNewTaskOpen }: Props) => {
 
     const projectId = Number(id);
     const queryArgs = useMemo(() => ({ projectId }), [projectId]);
+    const { canContribute } = useProjectPermissions(projectId);
 
     const {
         data: tasks,
@@ -207,13 +209,15 @@ const TimelineView = ({ id, setIsModalNewTaskOpen }: Props) => {
                         onChange={setViewMode}
                         label="Project timeline range"
                     />
-                    <button
-                        type="button"
-                        onClick={() => setIsModalNewTaskOpen(true)}
-                        className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-xs font-bold shadow-sm transition-colors"
-                    >
-                        Add New Task
-                    </button>
+                    {canContribute && (
+                        <button
+                            type="button"
+                            onClick={() => setIsModalNewTaskOpen(true)}
+                            className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-xs font-bold shadow-sm transition-colors"
+                        >
+                            Add New Task
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -228,7 +232,11 @@ const TimelineView = ({ id, setIsModalNewTaskOpen }: Props) => {
                     height={460}
                     emptyMessage="No tasks scheduled yet."
                     emptyHint="Add a task to start building this project timeline."
-                    onAddTask={() => setIsModalNewTaskOpen(true)}
+                    onAddTask={
+                        canContribute
+                            ? () => setIsModalNewTaskOpen(true)
+                            : undefined
+                    }
                 />
 
                 <div className="border-brand-500/70 flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">

@@ -1,7 +1,11 @@
 "use client";
 
 import Header from "@/components/Header";
-import { useDeleteProjectMutation } from "@/state/api";
+import { usePermissions } from "@/lib/permissions";
+import {
+    useDeleteProjectMutation,
+    useGetProjectAccessQuery,
+} from "@/state/api";
 import {
     Clock,
     Filter,
@@ -31,6 +35,12 @@ const ProjectHeader = ({ activeTab, setActiveTab, projectId }: Props) => {
     const [isModalNewProjectOpen, setIsModalNewProjectOpen] = useState(false);
     const [deleteProject, { isLoading: isDeletingProject }] =
         useDeleteProjectMutation();
+    const permissions = usePermissions();
+    const projectIdNumber = Number(projectId);
+    const { data: access } = useGetProjectAccessQuery(projectIdNumber, {
+        skip: !Number.isInteger(projectIdNumber) || projectIdNumber <= 0,
+    });
+    const canDeleteProject = permissions.canManageProject(access?.role);
     const router = useRouter();
 
     const handleDeleteProject = async () => {
@@ -64,20 +74,24 @@ const ProjectHeader = ({ activeTab, setActiveTab, projectId }: Props) => {
                     name="Product Blueprint"
                     buttonComponent={
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={handleDeleteProject}
-                                disabled={isDeletingProject}
-                                className="flex cursor-pointer items-center rounded-md border border-red-300 bg-red-50 px-2 py-2 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Trash2 className="mr-2 h-5 w-5" /> Delete
-                            </button>
-                            <button
-                                className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center rounded-md px-2 py-2"
-                                onClick={() => setIsModalNewProjectOpen(true)}
-                            >
-                                <PlusSquare className="mr-2 h-5 w-5" /> New Boards
-                            </button>
+                            {canDeleteProject && (
+                                <button
+                                    type="button"
+                                    onClick={handleDeleteProject}
+                                    disabled={isDeletingProject}
+                                    className="flex cursor-pointer items-center rounded-md border border-red-300 bg-red-50 px-2 py-2 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Trash2 className="mr-2 h-5 w-5" /> Delete
+                                </button>
+                            )}
+                            {permissions.canCreateProject && (
+                                <button
+                                    className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center rounded-md px-2 py-2"
+                                    onClick={() => setIsModalNewProjectOpen(true)}
+                                >
+                                    <PlusSquare className="mr-2 h-5 w-5" /> New Boards
+                                </button>
+                            )}
                         </div>
                     }
                 />

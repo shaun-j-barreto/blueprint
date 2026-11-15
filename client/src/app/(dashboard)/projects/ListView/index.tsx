@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import TaskCard from "@/components/TaskCard";
+import { useProjectPermissions } from "@/lib/permissions";
 import { Task, useGetTasksQuery } from "@/state/api";
 import React from "react";
 
@@ -10,6 +11,7 @@ type ListProps = {
 
 const ListView = ({ id, setIsModalNewTaskOpen }: ListProps) => {
     const projectId = Number(id);
+    const { canContribute } = useProjectPermissions(projectId);
 
     const {
         data: tasks,
@@ -36,11 +38,15 @@ const ListView = ({ id, setIsModalNewTaskOpen }: ListProps) => {
                 <Header
                     name="List"
                     buttonComponent={
-                        <button
-                            className="flex items-center justify-center rounded-lg  px-4 py-2 text-xs font-bold  shadow-sm bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 cursor-pointer transition-colors"
-                        >
-                            Add New Task
-                        </button>
+                        canContribute ? (
+                            <button
+                                type="button"
+                                onClick={() => setIsModalNewTaskOpen(true)}
+                                className="bg-brand-600 text-brand-900 hover:bg-brand-800 hover:text-brand-200 flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-xs font-bold shadow-sm transition-colors"
+                            >
+                                Add New Task
+                            </button>
+                        ) : null
                     }
                     isSmallText
                 />
