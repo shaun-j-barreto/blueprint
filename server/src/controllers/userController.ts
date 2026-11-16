@@ -120,7 +120,11 @@ export const completeOnboarding = async (
 
     const updated = await prisma.user.update({
       where: { id: actor.id },
-      data: { ...data, onboardedAt: new Date() },
+      data: {
+        ...data,
+        // First completion wins; later edits only refresh display fields.
+        ...(actor.onboardedAt === null ? { onboardedAt: new Date() } : {}),
+      },
       select: memberUserSelect,
     });
 

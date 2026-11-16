@@ -14,9 +14,10 @@ import {
     useGetProjectsQuery,
     useUpdateTaskMutation,
 } from "@/state/api";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { MAX_ATTACHMENT_FILES } from "@/lib/attachments";
 import { usePermissions } from "@/lib/permissions";
+import { getApiErrorMessage } from "@/lib/utils";
 import {
     dateInputStyles,
     inputStyles,
@@ -28,6 +29,11 @@ import {
 
 type Props = {
     isOpen: boolean;
+    onClose: () => void;
+    task: Task;
+};
+
+type FormProps = {
     onClose: () => void;
     task: Task;
 };
@@ -47,7 +53,7 @@ const priorityOptions = [
     Priority.Backlog,
 ];
 
-const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
+const EditTaskForm = ({ onClose, task }: FormProps) => {
     const [updateTask, { isLoading }] = useUpdateTaskMutation();
     const [addTaskAttachments] = useAddTaskAttachmentsMutation();
     const [deleteAttachment] = useDeleteAttachmentMutation();
@@ -87,29 +93,8 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     const [isSavingChanges, setIsSavingChanges] = useState(false);
     const [error, setError] = useState("");
 
-    // Attachment edits are staged locally, so re-opening the modal must start
-    // from the task as it currently exists. Cancel therefore changes nothing.
-    useEffect(() => {
-        if (!isOpen) return;
-
-        setTitle(task.title ?? "");
-        setDescription(task.description ?? "");
-        setStatus(task.status ?? Status.ToDo);
-        setPriority(task.priority ?? Priority.Backlog);
-        setTags(task.tags ?? "");
-        setStartDate(toDateInputValue(task.startDate));
-        setDueDate(toDateInputValue(task.dueDate));
-        setAuthorUserId(task.authorUserId ? String(task.authorUserId) : "");
-        setAssignedUserId(task.assignedUserId ? String(task.assignedUserId) : "");
-        setPoints(typeof task.points === "number" ? String(task.points) : "");
-        setAttachments(task.attachments ?? []);
-        setFiles([]);
-        setRemovedAttachmentIds([]);
-        setError("");
-        // Intentionally runs only when the modal opens: task prop refreshes
-        // (e.g. after an attachment mutation) must not clobber staged edits.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen]);
+    // Attachment edits are staged locally. The form is mounted fresh each time
+    // the modal opens, so it always starts from the task as it currently exists.
 
     const sortedUsers = useMemo(
         () =>
@@ -214,9 +199,12 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                 authorUserId: authorIdNumber,
                 assignedUserId: assignedIdNumber,
             }).unwrap();
-        } catch (err: any) {
+        } catch (err) {
             setError(
-                err?.data?.message ?? "Failed to update the task. Please try again.",
+                getApiErrorMessage(
+                    err,
+                    "Failed to update the task. Please try again.",
+                ),
             );
             setIsSavingChanges(false);
             return;
@@ -230,11 +218,17 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
         for (const attachmentId of removedAttachmentIds) {
             try {
                 await deleteAttachment(attachmentId).unwrap();
-            } catch (err: any) {
-                if (err?.status === 404) continue;
+            } catch (err) {
+                const status =
+                    typeof err === "object" && err !== null && "status" in err
+                        ? (err as { status?: unknown }).status
+                        : undefined;
+                if (status === 404) continue;
                 failedRemovals.push(attachmentId);
-                removalError =
-                    err?.data?.message ?? "Failed to remove an attachment.";
+                removalError = getApiErrorMessage(
+                    err,
+                    "Failed to remove an attachment.",
+                );
             }
         }
 
@@ -255,11 +249,12 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
             try {
                 await addTaskAttachments({ taskId: task.id, files }).unwrap();
                 setFiles([]);
-            } catch (err: any) {
+            } catch (err) {
                 setError(
-                    `Task details were saved, but uploading the new attachments failed: ${
-                        err?.data?.message ?? "Please try again."
-                    }`,
+                    `Task details were saved, but uploading the new attachments failed: ${getApiErrorMessage(
+                        err,
+                        "Please try again.",
+                    )}`,
                 );
                 setIsSavingChanges(false);
                 return;
@@ -271,9 +266,8 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} name="Edit Task">
-            <form
-                className="mt-4 space-y-6"
+        <form
+            className="mt-4 space-y-6"
                 onSubmit={(e) => {
                     e.preventDefault();
                     handleSubmit();
@@ -538,6 +532,13 @@ const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
                     {isBusy ? "Saving..." : "Save Changes"}
                 </button>
             </form>
+    );
+};
+
+const ModalEditTask = ({ isOpen, onClose, task }: Props) => {
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} name="Edit Task">
+            {isOpen ? <EditTaskForm task={task} onClose={onClose} /> : null}
         </Modal>
     );
 };

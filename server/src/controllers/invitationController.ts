@@ -328,6 +328,7 @@ export const resendInvitation = async (
       res.status(409).json({
         message: "That invitation was revoked. Create a new one instead.",
       });
+      return;
     }
 
     const token = newToken();

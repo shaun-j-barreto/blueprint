@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import {
     TypedUseSelectorHook,
@@ -26,15 +26,9 @@ import createWebStorage from "redux-persist/lib/storage/createWebStorage";
 /* REDUX PERSISTENCE */
 const createNoopStorage = () => {
     return {
-        getItem(_key: any) {
-            return Promise.resolve(null);
-        },
-        setItem(_key: any, value: any) {
-            return Promise.resolve(value);
-        },
-        removeItem(_key: any) {
-            return Promise.resolve();
-        },
+        getItem: () => Promise.resolve(null),
+        setItem: () => Promise.resolve(undefined),
+        removeItem: () => Promise.resolve(),
     };
 };
 
@@ -80,15 +74,17 @@ export default function StoreProvider({
 }: {
     children: React.ReactNode;
 }) {
-    const storeRef = useRef<AppStore>(undefined);
-    if (!storeRef.current) {
-        storeRef.current = makeStore();
-        setupListeners(storeRef.current.dispatch);
-    }
-    const persistor = persistStore(storeRef.current);
+    // The store is created once per mounted provider. A lazy state initializer
+    // keeps it stable across renders without reading a ref during render.
+    const [store] = useState(() => {
+        const appStore = makeStore();
+        setupListeners(appStore.dispatch);
+        return appStore;
+    });
+    const [persistor] = useState(() => persistStore(store));
 
     return (
-        <Provider store={storeRef.current}>
+        <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
                 {children}
             </PersistGate>

@@ -1,0 +1,77 @@
+name: blueprint
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blueprint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blueprint}
+      POSTGRES_DB: ${POSTGRES_DB:-blueprint}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blueprint} -d ${POSTGRES_DB:-blueprint}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
+  migrate:
+    build:
+      context: ./server
+      target: build
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-blueprint}:${POSTGRES_PASSWORD:-blueprint}@db:5432/${POSTGRES_DB:-blueprint}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    build:
+      context: ./server
+      target: runtime
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-blueprint}:${POSTGRES_PASSWORD:-blueprint}@db:5432/${POSTGRES_DB:-blueprint}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-before-deploying}
+      BETTER_AUTH_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      CLIENT_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:3000}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-BluePrint <no-reply@blueprint.local>}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+
+  client:
+    build:
+      context: ./client
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /backend
+        NEXT_PUBLIC_SITE_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://server:8000
+      NEXT_PUBLIC_API_BASE_URL: /backend
+      NEXT_PUBLIC_SITE_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+    depends_on:
+      - server
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:
