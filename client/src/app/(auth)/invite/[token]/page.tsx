@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthScreen from "@/components/auth/AuthScreen";
 import InvitePage from "@/components/auth/InviteAccept";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function InviteTokenPage() {
-  return <InvitePage />;
+  return (
+    <AuthScreen width="lg">
+      <InvitePage />
+    </AuthScreen>
+  );
 }

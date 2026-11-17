@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import AuthFormFallback from "@/components/auth/AuthFormFallback";
+import AuthScreen from "@/components/auth/AuthScreen";
 import SignupForm from "@/components/auth/SignupForm";
 
 export const metadata: Metadata = {
@@ -10,8 +11,10 @@ export const metadata: Metadata = {
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<AuthFormFallback />}>
-      <SignupForm />
-    </Suspense>
+    <AuthScreen>
+      <Suspense fallback={<AuthFormFallback />}>
+        <SignupForm />
+      </Suspense>
+    </AuthScreen>
   );
 }

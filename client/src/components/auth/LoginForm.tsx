@@ -9,7 +9,7 @@ import {
   authLabelStyles,
   authPrimaryButtonStyles,
 } from "@/components/auth/styles";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, LogIn, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -70,16 +70,21 @@ const LoginForm = () => {
 
   return (
     <div className={authCardStyles}>
-      <div>
-        <p className="text-brand-700 text-[10px] font-semibold tracking-[0.08em] uppercase">
-          Welcome back
-        </p>
-        <h1 className="text-brand-900 mt-1.5 text-2xl font-semibold tracking-tight">
-          Sign in to BluePrint
-        </h1>
-        <p className="text-brand-700 mt-1.5 text-xs leading-relaxed">
-          Pick up where you left off and keep your projects moving.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-brand-700 uppercase">
+            Welcome back
+          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-brand-900">
+            Sign in to BluePrint
+          </h1>
+          <p className="mt-1.5 text-xs leading-relaxed text-brand-700">
+            Pick up where you left off and keep your projects moving.
+          </p>
+        </div>
+        <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-500/70 bg-brand-200 text-indigo-600 sm:flex">
+          <Lock className="h-4 w-4" aria-hidden="true" />
+        </span>
       </div>
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -87,18 +92,24 @@ const LoginForm = () => {
           <label htmlFor="login-email" className={authLabelStyles}>
             Email
           </label>
-          <input
-            id="login-email"
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@company.com"
-            className={authInputStyles}
-            disabled={isSubmitting}
-          />
+          <div className="relative">
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-brand-700/70"
+              aria-hidden="true"
+            />
+            <input
+              id="login-email"
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@company.com"
+              className={`${authInputStyles} pl-10`}
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
         <div>
@@ -106,6 +117,10 @@ const LoginForm = () => {
             Password
           </label>
           <div className="relative">
+            <Lock
+              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-brand-700/70"
+              aria-hidden="true"
+            />
             <input
               id="login-password"
               type={showPassword ? "text" : "password"}
@@ -115,7 +130,7 @@ const LoginForm = () => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Your password"
-              className={`${authInputStyles} pr-10`}
+              className={`${authInputStyles} pr-11 pl-10`}
               disabled={isSubmitting}
             />
             <button
@@ -123,7 +138,7 @@ const LoginForm = () => {
               onClick={() => setShowPassword((visible) => !visible)}
               aria-label={showPassword ? "Hide password" : "Show password"}
               aria-pressed={showPassword}
-              className="text-brand-700 hover:text-brand-900 absolute top-1/2 right-1 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"
+              className="absolute top-1/2 right-1.5 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-brand-700 transition-colors hover:bg-brand-300 hover:text-brand-900 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -145,21 +160,31 @@ const LoginForm = () => {
           className={authPrimaryButtonStyles}
           disabled={isSubmitting}
         >
-          {isSubmitting && (
+          {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <LogIn className="h-4 w-4" aria-hidden="true" />
           )}
           {isSubmitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
-      <p className="text-brand-700 mt-6 text-center text-xs">
-        New to BluePrint?{" "}
+      <div className="mt-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-brand-500/80" />
+        <span className="font-mono text-[9px] font-semibold tracking-[0.14em] text-brand-700 uppercase">
+          New here?
+        </span>
+        <span className="h-px flex-1 bg-brand-500/80" />
+      </div>
+
+      <p className="mt-4 text-center text-xs text-brand-700">
         <Link
           href={signupHref(nextPath)}
-          className="text-brand-900 font-semibold underline-offset-2 hover:underline"
+          className="font-semibold text-brand-900 underline-offset-2 hover:underline"
         >
           Create an account
-        </Link>
+        </Link>{" "}
+        and start with an empty workspace.
       </p>
     </div>
   );

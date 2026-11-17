@@ -214,3 +214,179 @@ body,
     pointer-events: auto;
   }
 }
+
+/* Marketing and auth are intentionally light surfaces. The dashboard's
+   dark-mode class lives on <html>, so re-pin the palette at the root of those
+   screens instead of letting it invert them. */
+.brand-light {
+  color-scheme: light;
+  --color-brand-100: #ffffff;
+  --color-brand-200: #f8fafc;
+  --color-brand-300: #f4f7fa;
+  --color-brand-400: #f1f5f9;
+  --color-brand-500: #e2e8f0;
+  --color-brand-600: #cbd5e1;
+  --color-brand-700: #64748b;
+  --color-brand-800: #334155;
+  --color-brand-900: #070a13;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Marketing                                                                */
+/* -------------------------------------------------------------------------- */
+
+/* Drafting-paper backdrop used behind the hero and the auth brand panel. */
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(79, 70, 229, 0.075) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.075) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.blueprint-grid-dark {
+  background-image:
+    linear-gradient(to right, rgba(129, 140, 248, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(129, 140, 248, 0.12) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+.blueprint-fade {
+  -webkit-mask-image: radial-gradient(
+    ellipse 85% 75% at 50% 35%,
+    #000 30%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 85% 75% at 50% 35%,
+    #000 30%,
+    transparent 100%
+  );
+}
+
+/* Tile spotlight that follows the cursor (see FeatureBento). */
+.spotlight-card {
+  background-image: radial-gradient(
+    260px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(99, 102, 241, 0.11),
+    transparent 72%
+  );
+}
+
+/* The same cursor spotlight, tuned for glass cards on the dark sections. */
+.spotlight-card-dark {
+  background-image: radial-gradient(
+    280px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(129, 140, 248, 0.13),
+    transparent 72%
+  );
+}
+
+/* Faint drafting grid used inside light "sheet" cards on dark backgrounds. */
+.blueprint-paper {
+  background-image:
+    linear-gradient(to right, rgba(79, 70, 229, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Sweeping highlight for primary calls to action. */
+.shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateX(-130%) skewX(-18deg);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.38),
+    transparent
+  );
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.shine:hover::after,
+.shine:focus-visible::after {
+  transform: translateX(130%) skewX(-18deg);
+}
+
+@keyframes marquee-x {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee-x {
+  animation: marquee-x 38s linear infinite;
+}
+
+.marquee-pause:hover .animate-marquee-x {
+  animation-play-state: paused;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.animate-float-y {
+  animation: float-y 7s ease-in-out infinite;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Native <dialog> is used for confirmation prompts in settings. */
+dialog::backdrop {
+  background: rgba(7, 10, 19, 0.5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-marquee-x,
+  .animate-float-y {
+    animation: none !important;
+  }
+
+  .shine::after {
+    display: none;
+  }
+}
